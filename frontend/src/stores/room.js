@@ -1,0 +1,75 @@
+import { defineStore } from 'pinia'
+import { ref, computed } from 'vue'
+
+export const useRoomStore = defineStore('room', () => {
+  const room = ref(null)
+  const eventSource = ref(null)
+
+  const participants = computed(() =>
+    room.value ? Object.values(room.value.participants) : []
+  )
+  const currentRound = computed(() => room.value?.current_round ?? null)
+  const isRevealed = computed(() => currentRound.value?.revealed ?? false)
+  const cardSet = computed(() => room.value?.card_set ?? null)
+
+  function setRoom(data) {
+    room.value = data
+  }
+
+  function applyEvent(event) {
+    if (!room.value) return
+    const { type, data } = event
+
+    if (type === 'participant_joined') {
+      room.value.participants[data.participant.id] = data.participant
+    } else if (type === 'participant_left' || type === 'participant_kicked') {
+      delete room.value.participants[data.participant_id]
+    } else if (type === 'vote_cast') {
+      const p = room.value.participants[data.participant_id]
+      if (p) p.vote = 'hidden'
+    } else if (type === 'vote_retracted') {
+      const p = room.value.participants[data.participant_id]
+      if (p) p.vote = null
+    } else if (type === 'cards_revealed') {
+      room.value.current_round.revealed = true
+      for (const [pid, vote] of Object.entries(data.votes)) {
+        if (room.value.participants[pid]) {
+          room.value.participants[pid].vote = vote
+        }
+      }
+    } else if (type === 'new_round') {
+      room.value.current_round = { revealed: false, number: data.round_number }
+      for (const p of Object.values(room.value.participants)) {
+        p.vote = null
+      }
+    }
+  }
+
+  function connectSSE(roomId) {
+    disconnectSSE()
+    const es = new EventSource(`/api/rooms/${roomId}/events`)
+    es.onmessage = (e) => {
+      try {
+        applyEvent(JSON.parse(e.data))
+      } catch {
+        // malformed event — ignore
+      }
+    }
+    eventSource.value = es
+  }
+
+  function disconnectSSE() {
+    eventSource.value?.close()
+    eventSource.value = null
+  }
+
+  function clear() {
+    disconnectSSE()
+    room.value = null
+  }
+
+  return {
+    room, participants, currentRound, isRevealed, cardSet,
+    setRoom, applyEvent, connectSSE, disconnectSSE, clear,
+  }
+})
