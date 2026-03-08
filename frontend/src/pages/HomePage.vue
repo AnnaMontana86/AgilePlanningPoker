@@ -16,52 +16,107 @@
         />
       </section>
 
-      <!-- Create Room -->
-      <section class="space-y-3 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
-        <h2 class="font-semibold">Create a room</h2>
-        <input
-          v-model="newRoomName"
-          type="text"
-          maxlength="80"
-          placeholder="Room name"
-          class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-        />
-        <select
-          v-model="selectedCardSet"
-          class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-        >
-          <option value="">Select a card set</option>
-          <option v-for="(_, name) in cardSets" :key="name" :value="name">{{ name }}</option>
-        </select>
+      <!-- Action Buttons -->
+      <div class="flex gap-4">
         <button
-          :disabled="!canCreate"
-          @click="createRoom"
-          class="w-full rounded-lg bg-indigo-600 px-4 py-2 font-semibold text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          @click="showCreate = true"
+          class="flex-1 flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-3 font-semibold text-white hover:bg-indigo-700 transition-colors"
         >
-          Create Room
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+          </svg>
+          Create a room
         </button>
-      </section>
-
-      <!-- Join Room -->
-      <section class="space-y-3 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
-        <h2 class="font-semibold">Join a room</h2>
-        <input
-          v-model="joinCode"
-          type="text"
-          placeholder="Room ID or paste invite link"
-          class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-        />
         <button
-          :disabled="!canJoin"
-          @click="joinRoom"
-          class="w-full rounded-lg border border-indigo-600 px-4 py-2 font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          @click="showJoin = true"
+          class="flex-1 flex items-center justify-center gap-2 rounded-xl border border-indigo-600 px-4 py-3 font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors"
         >
-          Join Room
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 001 1h12a1 1 0 001-1V7.414A1 1 0 0015.707 7l-4-4A1 1 0 0011 2.586V2H4a1 1 0 00-1 1zm9 1.414L14.586 7H12V4.414zM4 4h7v4a1 1 0 001 1h4v8H4V4z" clip-rule="evenodd" />
+            <path d="M7 9a1 1 0 000 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7a1 1 0 10-2 0v2H7z" />
+          </svg>
+          Join a room
         </button>
-      </section>
+      </div>
 
       <p v-if="error" class="text-red-500 text-sm text-center">{{ error }}</p>
     </div>
+
+    <!-- Create Room Dialog -->
+    <Teleport to="body">
+      <div
+        v-if="showCreate"
+        class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+        @click.self="showCreate = false"
+      >
+        <div class="w-full max-w-sm rounded-2xl bg-white dark:bg-gray-900 shadow-xl p-6 space-y-4">
+          <div class="flex items-center justify-between">
+            <h2 class="text-lg font-semibold">Create a room</h2>
+            <button @click="showCreate = false" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+              </svg>
+            </button>
+          </div>
+          <input
+            v-model="newRoomName"
+            type="text"
+            maxlength="80"
+            placeholder="Room name"
+            class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+          <select
+            v-model="selectedCardSet"
+            class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            <option value="">Select a card set</option>
+            <option v-for="(cards, name) in cardSets" :key="name" :value="name">
+            {{ name }} ({{ cards.slice(0, 5).join(', ') }}{{ cards.length > 5 ? ', …' : '' }})
+          </option>
+          </select>
+          <button
+            :disabled="!canCreate"
+            @click="createRoom"
+            class="w-full rounded-lg bg-indigo-600 px-4 py-2 font-semibold text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            Create Room
+          </button>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- Join Room Dialog -->
+    <Teleport to="body">
+      <div
+        v-if="showJoin"
+        class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+        @click.self="showJoin = false"
+      >
+        <div class="w-full max-w-sm rounded-2xl bg-white dark:bg-gray-900 shadow-xl p-6 space-y-4">
+          <div class="flex items-center justify-between">
+            <h2 class="text-lg font-semibold">Join a room</h2>
+            <button @click="showJoin = false" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+              </svg>
+            </button>
+          </div>
+          <input
+            v-model="joinCode"
+            type="text"
+            placeholder="Room ID or paste invite link"
+            class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+          <button
+            :disabled="!canJoin"
+            @click="joinRoom"
+            class="w-full rounded-lg border border-indigo-600 px-4 py-2 font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            Join Room
+          </button>
+        </div>
+      </div>
+    </Teleport>
   </main>
 </template>
 
@@ -80,6 +135,8 @@ const selectedCardSet = ref('')
 const joinCode = ref('')
 const cardSets = ref({})
 const error = ref('')
+const showCreate = ref(false)
+const showJoin = ref(false)
 
 const canCreate = computed(() => nickname.value.trim() && newRoomName.value.trim() && selectedCardSet.value)
 const canJoin = computed(() => nickname.value.trim() && joinCode.value.trim())
@@ -91,6 +148,10 @@ onMounted(async () => {
     cardSets.value = await res.json()
   } catch {
     error.value = 'Could not load card sets. Is the server running?'
+  }
+
+  if (route.query.redirect) {
+    showJoin.value = true
   }
 })
 
@@ -113,6 +174,7 @@ async function createRoom() {
     router.push({ name: 'room', params: { roomId: data.room_id } })
   } catch (e) {
     error.value = `Failed to create room: ${e.message}`
+    showCreate.value = false
   }
 }
 
@@ -132,6 +194,7 @@ async function joinRoom() {
     router.push({ name: 'room', params: { roomId } })
   } catch (e) {
     error.value = `Failed to join room: ${e.message}`
+    showJoin.value = false
   }
 }
 </script>
