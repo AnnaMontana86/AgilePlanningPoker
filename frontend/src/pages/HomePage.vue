@@ -9,17 +9,24 @@
         <input
           id="nickname"
           v-model="nickname"
+          @input="nicknameError = false"
           type="text"
           maxlength="32"
           placeholder="Enter your nickname"
-          class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          :class="[
+            'w-full rounded-lg border bg-white dark:bg-gray-800 px-4 py-2 focus:outline-none focus:ring-2 transition-colors',
+            nicknameError
+              ? 'border-red-500 focus:ring-red-500'
+              : 'border-gray-300 dark:border-gray-600 focus:ring-indigo-500'
+          ]"
         />
+        <p v-if="nicknameError" class="text-red-500 text-sm">Please enter a nickname first.</p>
       </section>
 
       <!-- Action Buttons -->
       <div class="flex gap-4">
         <button
-          @click="showCreate = true"
+          @click="nickname.trim() ? (showCreate = true) : (nicknameError = true)"
           class="flex-1 flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-3 font-semibold text-white hover:bg-indigo-700 transition-colors"
         >
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -28,7 +35,7 @@
           Create a room
         </button>
         <button
-          @click="showJoin = true"
+          @click="nickname.trim() ? (showJoin = true) : (nicknameError = true)"
           class="flex-1 flex items-center justify-center gap-2 rounded-xl border border-indigo-600 px-4 py-3 font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors"
         >
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -137,6 +144,7 @@ const cardSets = ref({})
 const error = ref('')
 const showCreate = ref(false)
 const showJoin = ref(false)
+const nicknameError = ref(false)
 
 const canCreate = computed(() => nickname.value.trim() && newRoomName.value.trim() && selectedCardSet.value)
 const canJoin = computed(() => nickname.value.trim() && joinCode.value.trim())
