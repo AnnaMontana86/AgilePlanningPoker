@@ -5,7 +5,7 @@ class TestCreateRoom:
     async def test_create_room_with_predefined_card_set(self, client):
         resp = await client.post("/api/rooms", json={
             "name": "Sprint 42",
-            "card_set_name": "fibonacci",
+            "card_set_name": "Fibonacci",
             "owner_nickname": "Alice",
         })
         assert resp.status_code == 201
@@ -147,3 +147,70 @@ class TestKick:
         resp = await client.request("DELETE", f"/api/rooms/{room_id}/participants/{pid}",
                                     json={"token": token})
         assert resp.status_code == 400
+
+
+class TestLeaveRoom:
+    async def test_non_owner_can_leave(self, client, room_with_owner):
+        room_id, _, _ = room_with_owner
+        join = await client.post(f"/api/rooms/{room_id}/join", json={"nickname": "Bob"})
+        bob_id = join.json()["participant_id"]
+        resp = await client.post(f"/api/rooms/{room_id}/leave", json={
+            "participant_id": bob_id,
+            "token": bob_id,
+        })
+        assert resp.status_code == 200
+        room = (await client.get(f"/api/rooms/{room_id}")).json()
+        assert bob_id not in room["participants"]
+
+    async def test_owner_leaving_transfers_ownership(self, client, room_with_owner):
+        room_id, token, owner_id = room_with_owner
+        join = await client.post(f"/api/rooms/{room_id}/join", json={"nickname": "Bob"})
+        bob_id = join.json()["participant_id"]
+        resp = await client.post(f"/api/rooms/{room_id}/leave", json={
+            "participant_id": owner_id,
+            "token": token,
+        })
+        assert resp.status_code == 200
+        room = (await client.get(f"/api/rooms/{room_id}")).json()
+        assert owner_id not in room["participants"]
+        assert room["participants"][bob_id]["is_owner"] is True
+
+    async def test_last_participant_leaving_deletes_room(self, client, room_with_owner):
+        room_id, token, owner_id = room_with_owner
+        resp = await client.post(f"/api/rooms/{room_id}/leave", json={
+            "participant_id": owner_id,
+            "token": token,
+        })
+        assert resp.status_code == 200
+        assert (await client.get(f"/api/rooms/{room_id}")).status_code == 404
+
+    async def test_leave_with_wrong_token_returns_403(self, client, room_with_owner):
+        room_id, _, owner_id = room_with_owner
+        resp = await client.post(f"/api/rooms/{room_id}/leave", json={
+            "participant_id": owner_id,
+            "token": "wrong-token",
+        })
+        assert resp.status_code == 403
+
+
+class TestDuplicateNickname:
+    async def test_duplicate_nickname_gets_super_prefix(self, client, room_with_owner):
+        room_id, _, _ = room_with_owner
+        join = await client.post(f"/api/rooms/{room_id}/join", json={"nickname": "Bob"})
+        assert join.status_code == 201
+        join2 = await client.post(f"/api/rooms/{room_id}/join", json={"nickname": "Bob"})
+        assert join2.status_code == 201
+        room = (await client.get(f"/api/rooms/{room_id}")).json()
+        nicknames = [p["nickname"] for p in room["participants"].values()]
+        assert "Bob" in nicknames
+        assert "Super Bob" in nicknames
+
+    async def test_chained_super_prefix(self, client, room_with_owner):
+        room_id, _, _ = room_with_owner
+        await client.post(f"/api/rooms/{room_id}/join", json={"nickname": "Bob"})
+        await client.post(f"/api/rooms/{room_id}/join", json={"nickname": "Bob"})
+        join3 = await client.post(f"/api/rooms/{room_id}/join", json={"nickname": "Bob"})
+        assert join3.status_code == 201
+        room = (await client.get(f"/api/rooms/{room_id}")).json()
+        nicknames = [p["nickname"] for p in room["participants"].values()]
+        assert "Super Super Bob" in nicknames

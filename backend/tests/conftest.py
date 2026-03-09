@@ -24,7 +24,7 @@ async def room_with_owner(client):
     """Creates a room and returns (room_id, owner_token, owner_participant_id)."""
     resp = await client.post("/api/rooms", json={
         "name": "Test Room",
-        "card_set_name": "fibonacci",
+        "card_set_name": "Fibonacci",
         "owner_nickname": "Alice",
     })
     assert resp.status_code == 201

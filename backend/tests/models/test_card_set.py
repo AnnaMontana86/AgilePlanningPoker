@@ -19,6 +19,6 @@ class TestCardSet:
             CardSet(name="bad", cards=["only-one"])
 
     def test_predefined_sets_exist(self):
-        assert "fibonacci" in PREDEFINED_CARD_SETS
-        assert "t-shirt" in PREDEFINED_CARD_SETS
-        assert "powers-of-2" in PREDEFINED_CARD_SETS
+        assert "Fibonacci" in PREDEFINED_CARD_SETS
+        assert "T-Shirt" in PREDEFINED_CARD_SETS
+        assert "Powers-of-2" in PREDEFINED_CARD_SETS
