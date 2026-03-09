@@ -43,6 +43,11 @@ class KickRequest(BaseModel):
     token: str
 
 
+class LeaveRequest(BaseModel):
+    participant_id: str
+    token: str
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -93,7 +98,11 @@ async def get_room(room_id: str):
 @router.post("/rooms/{room_id}/join", status_code=201)
 async def join_room(room_id: str, req: JoinRoomRequest):
     room = _get_room_or_404(room_id)
-    participant = Participant(nickname=req.nickname)
+    existing_nicknames = {p.nickname for p in room.participants.values()}
+    nickname = req.nickname
+    while nickname in existing_nicknames:
+        nickname = f"Super {nickname}"
+    participant = Participant(nickname=nickname)
     room.participants[participant.id] = participant
     store.save_room(room)
     await broadcaster.broadcast(room_id, "participant_joined", {"participant": participant.model_dump()})
@@ -161,6 +170,33 @@ async def kick_participant(room_id: str, participant_id: str, req: KickRequest):
     del room.participants[participant_id]
     store.save_room(room)
     await broadcaster.broadcast(room_id, "participant_kicked", {"participant_id": participant_id})
+    return {"ok": True}
+
+
+@router.post("/rooms/{room_id}/leave")
+async def leave_room(room_id: str, req: LeaveRequest):
+    room = _get_room_or_404(room_id)
+    participant = room.participants.get(req.participant_id)
+    if not participant or req.token != participant.id:
+        raise HTTPException(status_code=403, detail="Invalid token")
+
+    # Last participant — delete room silently
+    if len(room.participants) == 1:
+        store.delete_room(room_id)
+        return {"ok": True}
+
+    new_owner_id = None
+    if participant.is_owner:
+        next_participant = next(p for p in room.participants.values() if p.id != req.participant_id)
+        next_participant.is_owner = True
+        new_owner_id = next_participant.id
+
+    del room.participants[req.participant_id]
+    store.save_room(room)
+    await broadcaster.broadcast(room_id, "participant_left", {
+        "participant_id": req.participant_id,
+        "new_owner_id": new_owner_id,
+    })
     return {"ok": True}
 
 

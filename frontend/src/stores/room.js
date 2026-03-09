@@ -24,6 +24,9 @@ export const useRoomStore = defineStore('room', () => {
       room.value.participants[data.participant.id] = data.participant
     } else if (type === 'participant_left' || type === 'participant_kicked') {
       delete room.value.participants[data.participant_id]
+      if (data.new_owner_id && room.value.participants[data.new_owner_id]) {
+        room.value.participants[data.new_owner_id].is_owner = true
+      }
     } else if (type === 'vote_cast') {
       const p = room.value.participants[data.participant_id]
       if (p) p.vote = 'hidden'
