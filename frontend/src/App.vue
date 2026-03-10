@@ -2,8 +2,9 @@
   <div :class="{ dark: themeStore.isDark }" class="min-h-screen">
     <div class="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors">
 
-      <!-- Theme toggle -->
+      <!-- Theme toggle (hidden on room page — shown in room toolbar instead) -->
       <button
+        v-if="route.name !== 'room'"
         @click="themeStore.toggle()"
         class="fixed top-4 right-4 z-50 rounded-full p-2 bg-white dark:bg-gray-800 shadow-md hover:shadow-lg border border-gray-200 dark:border-gray-700 transition-all"
         :aria-label="themeStore.isDark ? 'Switch to light mode' : 'Switch to dark mode'"
@@ -23,7 +24,9 @@
 </template>
 
 <script setup>
+import { useRoute } from 'vue-router'
 import { useThemeStore } from './stores/theme'
 
+const route = useRoute()
 const themeStore = useThemeStore()
 </script>

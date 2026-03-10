@@ -37,6 +37,22 @@ describe('useRoomStore', () => {
     expect(store.participants).toHaveLength(1)
   })
 
+  it('participant_left event removes participant', () => {
+    const store = useRoomStore()
+    store.setRoom(structuredClone(mockRoom))
+    store.applyEvent({ type: 'participant_left', data: { participant_id: 'p2', new_owner_id: null } })
+    expect(store.participants).toHaveLength(1)
+    expect(store.room.participants['p2']).toBeUndefined()
+  })
+
+  it('participant_left with new_owner_id transfers ownership', () => {
+    const store = useRoomStore()
+    store.setRoom(structuredClone(mockRoom))
+    store.applyEvent({ type: 'participant_left', data: { participant_id: 'p1', new_owner_id: 'p2' } })
+    expect(store.room.participants['p1']).toBeUndefined()
+    expect(store.room.participants['p2'].is_owner).toBe(true)
+  })
+
   it('vote_cast marks participant as voted', () => {
     const store = useRoomStore()
     store.setRoom(structuredClone(mockRoom))
