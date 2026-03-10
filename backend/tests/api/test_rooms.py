@@ -214,3 +214,74 @@ class TestDuplicateNickname:
         room = (await client.get(f"/api/rooms/{room_id}")).json()
         nicknames = [p["nickname"] for p in room["participants"].values()]
         assert "Super Super Bob" in nicknames
+
+
+class TestTopics:
+    async def test_owner_can_add_topic(self, client, room_with_owner):
+        room_id, token, _ = room_with_owner
+        resp = await client.post(f"/api/rooms/{room_id}/topics", json={
+            "token": token, "short_name": "Sprint 1", "link": "https://example.com",
+        })
+        assert resp.status_code == 201
+        assert resp.json()["topic"]["short_name"] == "Sprint 1"
+
+    async def test_non_owner_cannot_add_topic(self, client, room_with_owner):
+        room_id, _, _ = room_with_owner
+        join = await client.post(f"/api/rooms/{room_id}/join", json={"nickname": "Bob"})
+        bob_token = join.json()["token"]
+        resp = await client.post(f"/api/rooms/{room_id}/topics", json={
+            "token": bob_token, "short_name": "Bad topic",
+        })
+        assert resp.status_code == 403
+
+    async def test_topic_appears_in_room(self, client, room_with_owner):
+        room_id, token, _ = room_with_owner
+        await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, "short_name": "T1"})
+        await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, "short_name": "T2"})
+        room = (await client.get(f"/api/rooms/{room_id}")).json()
+        assert len(room["topics"]) == 2
+        assert room["topics"][0]["short_name"] == "T1"
+
+    async def test_owner_can_reorder_topics(self, client, room_with_owner):
+        room_id, token, _ = room_with_owner
+        r1 = await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, "short_name": "T1"})
+        r2 = await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, "short_name": "T2"})
+        id1 = r1.json()["topic"]["id"]
+        id2 = r2.json()["topic"]["id"]
+        resp = await client.put(f"/api/rooms/{room_id}/topics", json={"token": token, "topic_ids": [id2, id1]})
+        assert resp.status_code == 200
+        room = (await client.get(f"/api/rooms/{room_id}")).json()
+        assert room["topics"][0]["short_name"] == "T2"
+
+    async def test_owner_can_delete_topic(self, client, room_with_owner):
+        room_id, token, _ = room_with_owner
+        r = await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, "short_name": "T1"})
+        topic_id = r.json()["topic"]["id"]
+        resp = await client.request("DELETE", f"/api/rooms/{room_id}/topics/{topic_id}", json={"token": token})
+        assert resp.status_code == 200
+        room = (await client.get(f"/api/rooms/{room_id}")).json()
+        assert len(room["topics"]) == 0
+
+    async def test_new_round_advances_topic(self, client, room_with_owner):
+        room_id, token, _ = room_with_owner
+        await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, "short_name": "T1"})
+        await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, "short_name": "T2"})
+        await client.post(f"/api/rooms/{room_id}/reveal", json={"token": token})
+        await client.post(f"/api/rooms/{room_id}/new-round", json={"token": token})
+        room = (await client.get(f"/api/rooms/{room_id}")).json()
+        assert room["current_topic_index"] == 1
+
+    async def test_retry_keeps_topic(self, client, room_with_owner):
+        room_id, token, _ = room_with_owner
+        await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, "short_name": "T1"})
+        await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, "short_name": "T2"})
+        await client.post(f"/api/rooms/{room_id}/reveal", json={"token": token})
+        resp = await client.post(f"/api/rooms/{room_id}/retry", json={"token": token})
+        assert resp.status_code == 200
+        room = (await client.get(f"/api/rooms/{room_id}")).json()
+        assert room["current_topic_index"] == 0
+
+    async def test_retry_requires_revealed_round(self, client, room_with_owner):
+        room_id, token, _ = room_with_owner
+        resp = await client.post(f"/api/rooms/{room_id}/retry", json={"token": token})
+        assert resp.status_code == 409

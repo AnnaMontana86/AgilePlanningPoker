@@ -11,6 +11,9 @@ export const useRoomStore = defineStore('room', () => {
   const currentRound = computed(() => room.value?.current_round ?? null)
   const isRevealed = computed(() => currentRound.value?.revealed ?? false)
   const cardSet = computed(() => room.value?.card_set ?? null)
+  const topics = computed(() => room.value?.topics ?? [])
+  const currentTopicIndex = computed(() => room.value?.current_topic_index ?? 0)
+  const currentTopic = computed(() => topics.value[currentTopicIndex.value] ?? null)
 
   function setRoom(data) {
     room.value = data
@@ -42,9 +45,19 @@ export const useRoomStore = defineStore('room', () => {
       }
     } else if (type === 'new_round') {
       room.value.current_round = { revealed: false, number: data.round_number }
+      if (data.current_topic_index !== undefined) {
+        room.value.current_topic_index = data.current_topic_index
+      }
       for (const p of Object.values(room.value.participants)) {
         p.vote = null
       }
+    } else if (type === 'topic_added') {
+      room.value.topics.push(data.topic)
+    } else if (type === 'topics_reordered') {
+      room.value.topics = data.topics
+    } else if (type === 'topic_removed') {
+      room.value.topics = room.value.topics.filter(t => t.id !== data.topic_id)
+      room.value.current_topic_index = data.current_topic_index
     }
   }
 
@@ -73,6 +86,7 @@ export const useRoomStore = defineStore('room', () => {
 
   return {
     room, participants, currentRound, isRevealed, cardSet,
+    topics, currentTopicIndex, currentTopic,
     setRoom, applyEvent, connectSSE, disconnectSSE, clear,
   }
 })

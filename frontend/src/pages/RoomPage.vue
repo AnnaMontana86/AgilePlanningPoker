@@ -80,13 +80,33 @@
       <!-- Page body -->
       <main class="flex-1 max-w-4xl w-full mx-auto px-4 py-8 space-y-8">
 
-        <!-- Round headline -->
-        <h2 class="text-center text-3xl font-semibold text-gray-600 dark:text-gray-300">
-          Round {{ roomStore.currentRound?.number }}
-        </h2>
+        <!-- Round headline + current topic -->
+        <div class="text-center space-y-1">
+          <h2 class="text-3xl font-semibold text-gray-600 dark:text-gray-300">
+            Round {{ roomStore.currentRound?.number }}
+          </h2>
+          <div v-if="roomStore.currentTopic">
+            <a
+              v-if="roomStore.currentTopic.link"
+              :href="roomStore.currentTopic.link"
+              target="_blank"
+              rel="noopener"
+              class="inline-flex items-center gap-1.5 text-lg font-medium text-indigo-600 dark:text-indigo-400 hover:underline"
+            >
+              {{ roomStore.currentTopic.short_name }}
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z" />
+                <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z" />
+              </svg>
+            </a>
+            <span v-else class="text-lg font-medium text-gray-700 dark:text-gray-300">
+              {{ roomStore.currentTopic.short_name }}
+            </span>
+          </div>
+        </div>
 
         <!-- Owner action (centered) -->
-        <div v-if="isOwner" class="flex justify-center">
+        <div v-if="isOwner" class="flex justify-center gap-3">
           <button
             v-if="!roomStore.isRevealed"
             @click="reveal"
@@ -95,13 +115,20 @@
           >
             Reveal Cards
           </button>
-          <button
-            v-if="roomStore.isRevealed"
-            @click="newRound"
-            class="rounded-lg bg-indigo-600 px-8 py-2.5 font-semibold text-white hover:bg-indigo-700 transition-colors"
-          >
-            New Round
-          </button>
+          <template v-if="roomStore.isRevealed">
+            <button
+              @click="newRound"
+              class="rounded-lg bg-indigo-600 px-8 py-2.5 font-semibold text-white hover:bg-indigo-700 transition-colors"
+            >
+              New Round
+            </button>
+            <button
+              @click="retry"
+              class="rounded-lg border border-indigo-400 dark:border-indigo-500 px-8 py-2.5 font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors"
+            >
+              Retry
+            </button>
+          </template>
         </div>
 
         <!-- Participants -->
@@ -158,6 +185,95 @@
               {{ card }}
             </button>
           </div>
+        </section>
+
+        <!-- Topics -->
+        <section v-if="roomStore.topics.length > 0 || isOwner">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wide">Topics</h3>
+            <button
+              v-if="isOwner"
+              @click="showAddTopic = !showAddTopic"
+              class="flex items-center gap-1 text-sm text-indigo-600 dark:text-indigo-400 hover:underline"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+              </svg>
+              Add Topic
+            </button>
+          </div>
+
+          <!-- Add topic form -->
+          <div v-if="showAddTopic" class="mb-3 flex gap-2">
+            <input
+              v-model="newTopicName"
+              placeholder="Short name"
+              @keydown.enter="addTopic"
+              class="flex-1 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+            <input
+              v-model="newTopicLink"
+              placeholder="Link (optional)"
+              @keydown.enter="addTopic"
+              class="flex-1 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+            <button
+              @click="addTopic"
+              :disabled="!newTopicName.trim()"
+              class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >Add</button>
+            <button
+              @click="showAddTopic = false"
+              class="rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            >Cancel</button>
+          </div>
+
+          <!-- Topic list -->
+          <ol class="space-y-2">
+            <li
+              v-for="(topic, idx) in roomStore.topics"
+              :key="topic.id"
+              :class="[
+                'flex items-center gap-3 rounded-lg border px-4 py-2.5 bg-white dark:bg-gray-800 transition-colors',
+                idx === roomStore.currentTopicIndex
+                  ? 'border-indigo-400 dark:border-indigo-500'
+                  : 'border-gray-200 dark:border-gray-700'
+              ]"
+            >
+              <span class="w-5 text-xs text-gray-400 shrink-0">{{ idx + 1 }}</span>
+              <span
+                v-if="idx === roomStore.currentTopicIndex"
+                class="h-2 w-2 rounded-full bg-indigo-500 shrink-0"
+              ></span>
+              <a
+                v-if="topic.link"
+                :href="topic.link"
+                target="_blank"
+                rel="noopener"
+                class="flex-1 text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:underline truncate"
+              >{{ topic.short_name }}</a>
+              <span v-else class="flex-1 text-sm font-medium truncate">{{ topic.short_name }}</span>
+              <div v-if="isOwner" class="flex items-center gap-1 shrink-0">
+                <button
+                  @click="moveTopic(idx, -1)"
+                  :disabled="idx === 0"
+                  class="rounded p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 disabled:opacity-30 transition-colors"
+                  title="Move up"
+                >↑</button>
+                <button
+                  @click="moveTopic(idx, 1)"
+                  :disabled="idx === roomStore.topics.length - 1"
+                  class="rounded p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 disabled:opacity-30 transition-colors"
+                  title="Move down"
+                >↓</button>
+                <button
+                  @click="deleteTopic(topic.id)"
+                  class="rounded p-1 text-red-400 hover:text-red-600 transition-colors"
+                  title="Remove topic"
+                >×</button>
+              </div>
+            </li>
+          </ol>
         </section>
 
         <p v-if="error" class="text-red-500 text-sm text-center">{{ error }}</p>
@@ -423,6 +539,46 @@ async function reveal() {
 
 async function newRound() {
   try { await apiFetch(`/api/rooms/${roomId}/new-round`) } catch (e) { error.value = e.message }
+}
+
+async function retry() {
+  try { await apiFetch(`/api/rooms/${roomId}/retry`) } catch (e) { error.value = e.message }
+}
+
+// Topics
+const showAddTopic = ref(false)
+const newTopicName = ref('')
+const newTopicLink = ref('')
+
+async function addTopic() {
+  if (!newTopicName.value.trim()) return
+  try {
+    await apiFetch(`/api/rooms/${roomId}/topics`, 'POST', {
+      short_name: newTopicName.value.trim(),
+      link: newTopicLink.value.trim(),
+    })
+    newTopicName.value = ''
+    newTopicLink.value = ''
+    showAddTopic.value = false
+  } catch (e) { error.value = e.message }
+}
+
+async function moveTopic(idx, dir) {
+  const topics = [...roomStore.topics]
+  const newIdx = idx + dir
+  if (newIdx < 0 || newIdx >= topics.length) return
+  ;[topics[idx], topics[newIdx]] = [topics[newIdx], topics[idx]]
+  try {
+    await apiFetch(`/api/rooms/${roomId}/topics`, 'PUT', {
+      topic_ids: topics.map(t => t.id),
+    })
+  } catch (e) { error.value = e.message }
+}
+
+async function deleteTopic(topicId) {
+  try {
+    await apiFetch(`/api/rooms/${roomId}/topics/${topicId}`, 'DELETE')
+  } catch (e) { error.value = e.message }
 }
 
 async function kick(participantId) {
