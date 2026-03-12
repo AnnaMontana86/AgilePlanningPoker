@@ -6,7 +6,7 @@ import json
 
 from app.models.card_set import CardSet, PREDEFINED_CARD_SETS
 from app.models.participant import Participant
-from app.models.room import Room
+from app.models.room import Room, Topic
 from app.models.round import Round
 from app.store.memory import store
 from app.events.broadcaster import broadcaster
@@ -46,6 +46,23 @@ class KickRequest(BaseModel):
 class LeaveRequest(BaseModel):
     participant_id: str
     token: str
+
+
+class AddTopicRequest(BaseModel):
+    token: str
+    short_name: str
+    link: str = ""
+
+
+class ReorderTopicsRequest(BaseModel):
+    token: str
+    topic_ids: list[str]
+
+
+class EditTopicRequest(BaseModel):
+    token: str
+    short_name: str
+    link: str = ""
 
 
 # ---------------------------------------------------------------------------
@@ -152,9 +169,98 @@ async def new_round(room_id: str, req: OwnerActionRequest):
     for p in room.participants.values():
         p.vote = None
     room.current_round = Round(number=room.current_round.number + 1)
+    if room.topics and room.current_topic_index < len(room.topics) - 1:
+        room.current_topic_index += 1
     store.save_room(room)
-    await broadcaster.broadcast(room_id, "new_round", {"round_number": room.current_round.number})
+    await broadcaster.broadcast(room_id, "new_round", {
+        "round_number": room.current_round.number,
+        "current_topic_index": room.current_topic_index,
+    })
     return {"ok": True, "round_number": room.current_round.number}
+
+
+@router.post("/rooms/{room_id}/retry")
+async def retry_round(room_id: str, req: OwnerActionRequest):
+    room = _get_room_or_404(room_id)
+    owner = next((p for p in room.participants.values() if p.is_owner), None)
+    if not owner or req.token != owner.id:
+        raise HTTPException(status_code=403, detail="Only the room owner can retry a round")
+    if not room.current_round.revealed:
+        raise HTTPException(status_code=409, detail="Round not yet revealed")
+    for p in room.participants.values():
+        p.vote = None
+    room.current_round = Round(number=room.current_round.number + 1)
+    store.save_room(room)
+    await broadcaster.broadcast(room_id, "new_round", {
+        "round_number": room.current_round.number,
+        "current_topic_index": room.current_topic_index,
+    })
+    return {"ok": True, "round_number": room.current_round.number}
+
+
+@router.post("/rooms/{room_id}/topics", status_code=201)
+async def add_topic(room_id: str, req: AddTopicRequest):
+    room = _get_room_or_404(room_id)
+    owner = next((p for p in room.participants.values() if p.is_owner), None)
+    if not owner or req.token != owner.id:
+        raise HTTPException(status_code=403, detail="Only the room owner can add topics")
+    topic = Topic(short_name=req.short_name, link=req.link)
+    room.topics.append(topic)
+    store.save_room(room)
+    await broadcaster.broadcast(room_id, "topic_added", {"topic": topic.model_dump()})
+    return {"topic": topic.model_dump()}
+
+
+@router.put("/rooms/{room_id}/topics")
+async def reorder_topics(room_id: str, req: ReorderTopicsRequest):
+    room = _get_room_or_404(room_id)
+    owner = next((p for p in room.participants.values() if p.is_owner), None)
+    if not owner or req.token != owner.id:
+        raise HTTPException(status_code=403, detail="Only the room owner can reorder topics")
+    topic_map = {t.id: t for t in room.topics}
+    if set(req.topic_ids) != set(topic_map.keys()):
+        raise HTTPException(status_code=400, detail="Invalid topic IDs")
+    room.topics = [topic_map[tid] for tid in req.topic_ids]
+    store.save_room(room)
+    await broadcaster.broadcast(room_id, "topics_reordered", {"topics": [t.model_dump() for t in room.topics]})
+    return {"ok": True}
+
+
+@router.patch("/rooms/{room_id}/topics/{topic_id}")
+async def edit_topic(room_id: str, topic_id: str, req: EditTopicRequest):
+    room = _get_room_or_404(room_id)
+    owner = next((p for p in room.participants.values() if p.is_owner), None)
+    if not owner or req.token != owner.id:
+        raise HTTPException(status_code=403, detail="Only the room owner can edit topics")
+    topic = next((t for t in room.topics if t.id == topic_id), None)
+    if not topic:
+        raise HTTPException(status_code=404, detail="Topic not found")
+    topic.short_name = req.short_name
+    topic.link = req.link
+    store.save_room(room)
+    await broadcaster.broadcast(room_id, "topic_updated", {"topic": topic.model_dump()})
+    return {"topic": topic.model_dump()}
+
+
+@router.delete("/rooms/{room_id}/topics/{topic_id}")
+async def delete_topic(room_id: str, topic_id: str, req: KickRequest):
+    room = _get_room_or_404(room_id)
+    owner = next((p for p in room.participants.values() if p.is_owner), None)
+    if not owner or req.token != owner.id:
+        raise HTTPException(status_code=403, detail="Only the room owner can remove topics")
+    idx = next((i for i, t in enumerate(room.topics) if t.id == topic_id), None)
+    if idx is None:
+        raise HTTPException(status_code=404, detail="Topic not found")
+    room.topics.pop(idx)
+    if idx < room.current_topic_index:
+        room.current_topic_index -= 1
+    room.current_topic_index = max(0, min(room.current_topic_index, len(room.topics) - 1)) if room.topics else 0
+    store.save_room(room)
+    await broadcaster.broadcast(room_id, "topic_removed", {
+        "topic_id": topic_id,
+        "current_topic_index": room.current_topic_index,
+    })
+    return {"ok": True}
 
 
 @router.delete("/rooms/{room_id}/participants/{participant_id}")

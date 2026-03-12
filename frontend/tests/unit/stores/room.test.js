@@ -92,6 +92,72 @@ describe('useRoomStore', () => {
     }
   })
 
+  it('new_round updates current_topic_index when provided', () => {
+    const store = useRoomStore()
+    const roomWithTopics = structuredClone(mockRoom)
+    roomWithTopics.topics = [
+      { id: 't1', short_name: 'Topic 1', link: '' },
+      { id: 't2', short_name: 'Topic 2', link: '' },
+    ]
+    roomWithTopics.current_topic_index = 0
+    store.setRoom(roomWithTopics)
+    store.applyEvent({ type: 'new_round', data: { round_number: 2, current_topic_index: 1 } })
+    expect(store.currentTopicIndex).toBe(1)
+    expect(store.currentTopic.short_name).toBe('Topic 2')
+  })
+
+  it('topic_added appends topic', () => {
+    const store = useRoomStore()
+    const roomWithTopics = structuredClone(mockRoom)
+    roomWithTopics.topics = []
+    roomWithTopics.current_topic_index = 0
+    store.setRoom(roomWithTopics)
+    store.applyEvent({ type: 'topic_added', data: { topic: { id: 't1', short_name: 'Sprint 1', link: '' } } })
+    expect(store.topics).toHaveLength(1)
+    expect(store.topics[0].short_name).toBe('Sprint 1')
+  })
+
+  it('topics_reordered replaces topic list', () => {
+    const store = useRoomStore()
+    const roomWithTopics = structuredClone(mockRoom)
+    roomWithTopics.topics = [
+      { id: 't1', short_name: 'A', link: '' },
+      { id: 't2', short_name: 'B', link: '' },
+    ]
+    roomWithTopics.current_topic_index = 0
+    store.setRoom(roomWithTopics)
+    store.applyEvent({ type: 'topics_reordered', data: { topics: [
+      { id: 't2', short_name: 'B', link: '' },
+      { id: 't1', short_name: 'A', link: '' },
+    ]}})
+    expect(store.topics[0].short_name).toBe('B')
+  })
+
+  it('topic_updated replaces topic data', () => {
+    const store = useRoomStore()
+    const roomWithTopics = structuredClone(mockRoom)
+    roomWithTopics.topics = [{ id: 't1', short_name: 'Old', link: '' }]
+    roomWithTopics.current_topic_index = 0
+    store.setRoom(roomWithTopics)
+    store.applyEvent({ type: 'topic_updated', data: { topic: { id: 't1', short_name: 'New', link: 'https://x.com' } } })
+    expect(store.topics[0].short_name).toBe('New')
+    expect(store.topics[0].link).toBe('https://x.com')
+  })
+
+  it('topic_removed deletes topic and updates index', () => {
+    const store = useRoomStore()
+    const roomWithTopics = structuredClone(mockRoom)
+    roomWithTopics.topics = [
+      { id: 't1', short_name: 'A', link: '' },
+      { id: 't2', short_name: 'B', link: '' },
+    ]
+    roomWithTopics.current_topic_index = 1
+    store.setRoom(roomWithTopics)
+    store.applyEvent({ type: 'topic_removed', data: { topic_id: 't1', current_topic_index: 0 } })
+    expect(store.topics).toHaveLength(1)
+    expect(store.currentTopicIndex).toBe(0)
+  })
+
   it('clear removes room and disconnects SSE', () => {
     const store = useRoomStore()
     store.setRoom(structuredClone(mockRoom))
