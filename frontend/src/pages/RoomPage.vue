@@ -120,13 +120,13 @@
               @click="newRound"
               class="rounded-lg bg-indigo-600 px-8 py-2.5 font-semibold text-white hover:bg-indigo-700 transition-colors"
             >
-              New Round
+              Next Topic
             </button>
             <button
               @click="retry"
               class="rounded-lg border border-indigo-400 dark:border-indigo-500 px-8 py-2.5 font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors"
             >
-              Retry
+              Revote
             </button>
           </template>
         </div>
@@ -255,6 +255,15 @@
               <span v-else class="flex-1 text-sm font-medium truncate">{{ topic.short_name }}</span>
               <div v-if="isOwner" class="flex items-center gap-1 shrink-0">
                 <button
+                  @click="openEditTopic(topic)"
+                  class="rounded p-1 text-gray-400 hover:text-indigo-500 transition-colors"
+                  title="Edit topic"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                  </svg>
+                </button>
+                <button
                   @click="moveTopic(idx, -1)"
                   :disabled="idx === 0"
                   class="rounded p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 disabled:opacity-30 transition-colors"
@@ -278,6 +287,42 @@
 
         <p v-if="error" class="text-red-500 text-sm text-center">{{ error }}</p>
       </main>
+
+      <!-- Edit topic dialog -->
+      <div
+        v-if="editingTopic"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+        @click.self="editingTopic = null"
+      >
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 w-96 space-y-4">
+          <h3 class="text-lg font-semibold">Edit Topic</h3>
+          <div class="space-y-3">
+            <input
+              v-model="editTopicName"
+              placeholder="Short name"
+              @keydown.enter="saveEditTopic"
+              class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+            <input
+              v-model="editTopicLink"
+              placeholder="Link (optional)"
+              @keydown.enter="saveEditTopic"
+              class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+          <div class="flex justify-end gap-3">
+            <button
+              @click="editingTopic = null"
+              class="rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            >Cancel</button>
+            <button
+              @click="saveEditTopic"
+              :disabled="!editTopicName.trim()"
+              class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >Save</button>
+          </div>
+        </div>
+      </div>
 
       <!-- Copy toast -->
       <Transition
@@ -578,6 +623,27 @@ async function moveTopic(idx, dir) {
 async function deleteTopic(topicId) {
   try {
     await apiFetch(`/api/rooms/${roomId}/topics/${topicId}`, 'DELETE')
+  } catch (e) { error.value = e.message }
+}
+
+const editingTopic = ref(null)
+const editTopicName = ref('')
+const editTopicLink = ref('')
+
+function openEditTopic(topic) {
+  editingTopic.value = topic
+  editTopicName.value = topic.short_name
+  editTopicLink.value = topic.link
+}
+
+async function saveEditTopic() {
+  if (!editTopicName.value.trim() || !editingTopic.value) return
+  try {
+    await apiFetch(`/api/rooms/${roomId}/topics/${editingTopic.value.id}`, 'PATCH', {
+      short_name: editTopicName.value.trim(),
+      link: editTopicLink.value.trim(),
+    })
+    editingTopic.value = null
   } catch (e) { error.value = e.message }
 }
 

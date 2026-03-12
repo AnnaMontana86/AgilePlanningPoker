@@ -285,3 +285,25 @@ class TestTopics:
         room_id, token, _ = room_with_owner
         resp = await client.post(f"/api/rooms/{room_id}/retry", json={"token": token})
         assert resp.status_code == 409
+
+    async def test_owner_can_edit_topic(self, client, room_with_owner):
+        room_id, token, _ = room_with_owner
+        r = await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, "short_name": "Old Name"})
+        topic_id = r.json()["topic"]["id"]
+        resp = await client.patch(f"/api/rooms/{room_id}/topics/{topic_id}", json={
+            "token": token, "short_name": "New Name", "link": "https://example.com",
+        })
+        assert resp.status_code == 200
+        assert resp.json()["topic"]["short_name"] == "New Name"
+        assert resp.json()["topic"]["link"] == "https://example.com"
+
+    async def test_non_owner_cannot_edit_topic(self, client, room_with_owner):
+        room_id, token, _ = room_with_owner
+        r = await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, "short_name": "T1"})
+        topic_id = r.json()["topic"]["id"]
+        join = await client.post(f"/api/rooms/{room_id}/join", json={"nickname": "Bob"})
+        bob_token = join.json()["token"]
+        resp = await client.patch(f"/api/rooms/{room_id}/topics/{topic_id}", json={
+            "token": bob_token, "short_name": "Hacked",
+        })
+        assert resp.status_code == 403

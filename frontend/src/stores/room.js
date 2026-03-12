@@ -51,6 +51,9 @@ export const useRoomStore = defineStore('room', () => {
       for (const p of Object.values(room.value.participants)) {
         p.vote = null
       }
+    } else if (type === 'topic_updated') {
+      const idx = room.value.topics.findIndex(t => t.id === data.topic.id)
+      if (idx !== -1) room.value.topics[idx] = data.topic
     } else if (type === 'topic_added') {
       room.value.topics.push(data.topic)
     } else if (type === 'topics_reordered') {

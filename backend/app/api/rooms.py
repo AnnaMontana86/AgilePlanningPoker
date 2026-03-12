@@ -59,6 +59,12 @@ class ReorderTopicsRequest(BaseModel):
     topic_ids: list[str]
 
 
+class EditTopicRequest(BaseModel):
+    token: str
+    short_name: str
+    link: str = ""
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -218,6 +224,22 @@ async def reorder_topics(room_id: str, req: ReorderTopicsRequest):
     store.save_room(room)
     await broadcaster.broadcast(room_id, "topics_reordered", {"topics": [t.model_dump() for t in room.topics]})
     return {"ok": True}
+
+
+@router.patch("/rooms/{room_id}/topics/{topic_id}")
+async def edit_topic(room_id: str, topic_id: str, req: EditTopicRequest):
+    room = _get_room_or_404(room_id)
+    owner = next((p for p in room.participants.values() if p.is_owner), None)
+    if not owner or req.token != owner.id:
+        raise HTTPException(status_code=403, detail="Only the room owner can edit topics")
+    topic = next((t for t in room.topics if t.id == topic_id), None)
+    if not topic:
+        raise HTTPException(status_code=404, detail="Topic not found")
+    topic.short_name = req.short_name
+    topic.link = req.link
+    store.save_room(room)
+    await broadcaster.broadcast(room_id, "topic_updated", {"topic": topic.model_dump()})
+    return {"topic": topic.model_dump()}
 
 
 @router.delete("/rooms/{room_id}/topics/{topic_id}")

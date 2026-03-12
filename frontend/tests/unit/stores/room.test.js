@@ -133,6 +133,17 @@ describe('useRoomStore', () => {
     expect(store.topics[0].short_name).toBe('B')
   })
 
+  it('topic_updated replaces topic data', () => {
+    const store = useRoomStore()
+    const roomWithTopics = structuredClone(mockRoom)
+    roomWithTopics.topics = [{ id: 't1', short_name: 'Old', link: '' }]
+    roomWithTopics.current_topic_index = 0
+    store.setRoom(roomWithTopics)
+    store.applyEvent({ type: 'topic_updated', data: { topic: { id: 't1', short_name: 'New', link: 'https://x.com' } } })
+    expect(store.topics[0].short_name).toBe('New')
+    expect(store.topics[0].link).toBe('https://x.com')
+  })
+
   it('topic_removed deletes topic and updates index', () => {
     const store = useRoomStore()
     const roomWithTopics = structuredClone(mockRoom)
