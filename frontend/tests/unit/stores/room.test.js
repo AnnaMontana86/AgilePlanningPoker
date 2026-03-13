@@ -106,6 +106,27 @@ describe('useRoomStore', () => {
     expect(store.currentTopic.short_name).toBe('Topic 2')
   })
 
+  it('new_round with estimated_topic updates topic estimates', () => {
+    const store = useRoomStore()
+    const roomWithTopics = structuredClone(mockRoom)
+    roomWithTopics.topics = [
+      { id: 't1', short_name: 'Topic 1', link: '', estimates: null },
+      { id: 't2', short_name: 'Topic 2', link: '', estimates: null },
+    ]
+    roomWithTopics.current_topic_index = 0
+    store.setRoom(roomWithTopics)
+    store.applyEvent({
+      type: 'new_round',
+      data: {
+        round_number: 2,
+        current_topic_index: 1,
+        estimated_topic: { id: 't1', short_name: 'Topic 1', link: '', estimates: ['5', '3'] },
+      },
+    })
+    expect(store.topics[0].estimates).toEqual(['5', '3'])
+    expect(store.currentTopicIndex).toBe(1)
+  })
+
   it('topic_added appends topic', () => {
     const store = useRoomStore()
     const roomWithTopics = structuredClone(mockRoom)

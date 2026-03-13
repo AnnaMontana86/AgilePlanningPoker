@@ -307,3 +307,28 @@ class TestTopics:
             "token": bob_token, "short_name": "Hacked",
         })
         assert resp.status_code == 403
+
+    async def test_new_round_saves_estimates_to_topic(self, client, room_with_owner):
+        room_id, token, pid = room_with_owner
+        await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, "short_name": "T1"})
+        await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, "short_name": "T2"})
+        join = await client.post(f"/api/rooms/{room_id}/join", json={"nickname": "Bob"})
+        bob_id = join.json()["participant_id"]
+        bob_token = join.json()["token"]
+        await client.post(f"/api/rooms/{room_id}/vote", json={"participant_id": pid, "token": token, "card": "5"})
+        await client.post(f"/api/rooms/{room_id}/vote", json={"participant_id": bob_id, "token": bob_token, "card": "3"})
+        await client.post(f"/api/rooms/{room_id}/reveal", json={"token": token})
+        await client.post(f"/api/rooms/{room_id}/new-round", json={"token": token})
+        room = (await client.get(f"/api/rooms/{room_id}")).json()
+        t1 = room["topics"][0]
+        assert t1["estimates"] is not None
+        assert set(t1["estimates"]) == {"5", "3"}
+
+    async def test_retry_does_not_save_estimates(self, client, room_with_owner):
+        room_id, token, pid = room_with_owner
+        await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, "short_name": "T1"})
+        await client.post(f"/api/rooms/{room_id}/vote", json={"participant_id": pid, "token": token, "card": "5"})
+        await client.post(f"/api/rooms/{room_id}/reveal", json={"token": token})
+        await client.post(f"/api/rooms/{room_id}/retry", json={"token": token})
+        room = (await client.get(f"/api/rooms/{room_id}")).json()
+        assert room["topics"][0]["estimates"] is None

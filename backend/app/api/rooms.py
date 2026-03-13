@@ -166,6 +166,12 @@ async def new_round(room_id: str, req: OwnerActionRequest):
     owner = next((p for p in room.participants.values() if p.is_owner), None)
     if not owner or req.token != owner.id:
         raise HTTPException(status_code=403, detail="Only the room owner can start a new round")
+    # Save estimates to current topic before advancing
+    estimated_topic = None
+    if room.topics and room.current_topic_index < len(room.topics):
+        topic = room.topics[room.current_topic_index]
+        topic.estimates = [p.vote for p in room.participants.values() if p.vote is not None]
+        estimated_topic = topic.model_dump()
     for p in room.participants.values():
         p.vote = None
     room.current_round = Round(number=room.current_round.number + 1)
@@ -175,6 +181,7 @@ async def new_round(room_id: str, req: OwnerActionRequest):
     await broadcaster.broadcast(room_id, "new_round", {
         "round_number": room.current_round.number,
         "current_topic_index": room.current_topic_index,
+        "estimated_topic": estimated_topic,
     })
     return {"ok": True, "round_number": room.current_round.number}
 

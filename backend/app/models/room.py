@@ -11,6 +11,7 @@ class Topic(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     short_name: str = Field(..., min_length=1, max_length=100)
     link: str = ""
+    estimates: list[str] | None = None  # None = not estimated yet
 
 
 class Room(BaseModel):

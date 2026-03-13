@@ -4,6 +4,32 @@
       <p class="text-gray-500">Loading room…</p>
     </div>
 
+    <!-- Join overlay for share-link visitors -->
+    <div
+      v-else-if="joining"
+      class="flex flex-1 items-center justify-center px-4"
+    >
+      <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 w-full max-w-sm space-y-5">
+        <div>
+          <h2 class="text-xl font-bold">Join {{ roomStore.room.name }}</h2>
+          <p class="text-sm text-gray-500 mt-1">Enter your nickname to join this room.</p>
+        </div>
+        <input
+          v-model="joinNickname"
+          placeholder="Your nickname"
+          @keydown.enter="joinRoom"
+          autofocus
+          class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        />
+        <p v-if="joinError" class="text-sm text-red-500">{{ joinError }}</p>
+        <button
+          @click="joinRoom"
+          :disabled="!joinNickname.trim()"
+          class="w-full rounded-lg bg-indigo-600 py-2.5 font-semibold text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >Join Room</button>
+      </div>
+    </div>
+
     <template v-else>
       <!-- Toolbar -->
       <header class="sticky top-0 z-10 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-4 py-2 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
@@ -253,6 +279,17 @@
                 class="flex-1 text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:underline truncate"
               >{{ topic.short_name }}</a>
               <span v-else class="flex-1 text-sm font-medium truncate">{{ topic.short_name }}</span>
+              <!-- Estimated badge -->
+              <span v-if="topic.estimates != null" class="flex items-center gap-1 shrink-0">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-green-500" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                </svg>
+                <span
+                  v-for="e in topic.estimates"
+                  :key="e"
+                  class="rounded-full bg-green-100 dark:bg-green-900/40 px-1.5 py-0.5 text-xs font-medium text-green-700 dark:text-green-300"
+                >{{ e }}</span>
+              </span>
               <div v-if="isOwner" class="flex items-center gap-1 shrink-0">
                 <button
                   @click="openEditTopic(topic)"
@@ -279,7 +316,11 @@
                   @click="deleteTopic(topic.id)"
                   class="rounded p-1 text-red-400 hover:text-red-600 transition-colors"
                   title="Remove topic"
-                >×</button>
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                  </svg>
+                </button>
               </div>
             </li>
           </ol>
@@ -409,6 +450,33 @@ const themeStore = useThemeStore()
 
 const error = ref('')
 const roomId = route.params.roomId
+
+// Join flow for share-link visitors
+const joining = ref(false)
+const joinNickname = ref(userStore.nickname ?? '')
+const joinError = ref('')
+
+async function joinRoom() {
+  if (!joinNickname.value.trim()) return
+  joinError.value = ''
+  try {
+    const res = await fetch(`/api/rooms/${roomId}/join`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nickname: joinNickname.value.trim() }),
+    })
+    if (!res.ok) throw new Error((await res.json()).detail ?? res.statusText)
+    const data = await res.json()
+    userStore.setNickname(joinNickname.value.trim())
+    userStore.setSession(data.participant_id, data.token)
+    const refreshed = await fetch(`/api/rooms/${roomId}`)
+    if (refreshed.ok) roomStore.setRoom(await refreshed.json())
+    joining.value = false
+    roomStore.connectSSE(roomId)
+  } catch (e) {
+    joinError.value = e.message
+  }
+}
 
 // Timer
 const timerDialog = ref(false)
@@ -679,8 +747,14 @@ onMounted(async () => {
   try {
     const res = await fetch(`/api/rooms/${roomId}`)
     if (!res.ok) { router.push({ name: 'home' }); return }
-    roomStore.setRoom(await res.json())
-    roomStore.connectSSE(roomId)
+    const data = await res.json()
+    roomStore.setRoom(data)
+    const alreadyIn = userStore.participantId && data.participants?.[userStore.participantId]
+    if (alreadyIn) {
+      roomStore.connectSSE(roomId)
+    } else {
+      joining.value = true
+    }
   } catch {
     router.push({ name: 'home' })
   }

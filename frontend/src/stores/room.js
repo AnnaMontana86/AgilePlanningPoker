@@ -44,6 +44,10 @@ export const useRoomStore = defineStore('room', () => {
         }
       }
     } else if (type === 'new_round') {
+      if (data.estimated_topic) {
+        const idx = room.value.topics.findIndex(t => t.id === data.estimated_topic.id)
+        if (idx !== -1) room.value.topics[idx] = data.estimated_topic
+      }
       room.value.current_round = { revealed: false, number: data.round_number }
       if (data.current_topic_index !== undefined) {
         room.value.current_topic_index = data.current_topic_index
