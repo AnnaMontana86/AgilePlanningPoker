@@ -6,12 +6,13 @@ RUN npm ci
 COPY frontend/ .
 RUN npm run build
 
-# ---- Runtime: nginx + uvicorn via supervisord ----
+# ---- Runtime: nginx + uvicorn ----
 FROM python:3.11-slim
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends nginx supervisor \
-    && rm -rf /var/lib/apt/lists/*
+    && apt-get install -y --no-install-recommends nginx \
+    && rm -rf /var/lib/apt/lists/* \
+    && rm -f /etc/nginx/sites-enabled/default
 
 # Backend
 WORKDIR /backend
@@ -22,13 +23,12 @@ COPY backend/app/ ./app/
 # Frontend static files
 COPY --from=frontend-builder /app/dist /usr/share/nginx/html
 
-# Nginx config — replace Docker Compose service name with localhost
-COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
-RUN sed -i 's|http://backend:8000|http://127.0.0.1:8000|g' /etc/nginx/conf.d/default.conf \
-    && rm -f /etc/nginx/sites-enabled/default
+# Nginx config (explicit 0.0.0.0:80 + proxy to localhost)
+COPY docker/nginx.combined.conf /etc/nginx/conf.d/default.conf
 
-# Supervisord config
-COPY supervisord.conf /etc/supervisor/conf.d/app.conf
+# Startup script
+COPY start.sh /start.sh
+RUN chmod +x /start.sh
 
 EXPOSE 80
-CMD ["/usr/bin/supervisord", "-n", "-c", "/etc/supervisor/conf.d/app.conf"]
+CMD ["/start.sh"]
