@@ -563,26 +563,31 @@ const myEmoji = ref(null)
 const moodOpen = ref(false)
 const moodAnchor = ref(null)
 
-const thinkingActive = ref(false)
+const thinkingActive = computed(() => roomStore.room?.music_playing ?? false)
 let thinkingAudio = null
 
-function startThinkingMusic() {
+function startThinkingAudio() {
+  if (thinkingAudio) return
   thinkingAudio = new Audio('/sounds/thinking-time.mp3')
   thinkingAudio.loop = true
   thinkingAudio.play()
-  thinkingActive.value = true
 }
 
-function stopThinkingMusic() {
+function stopThinkingAudio() {
   thinkingAudio?.pause()
   thinkingAudio = null
-  thinkingActive.value = false
 }
 
-function toggleThinkingMusic() {
-  if (thinkingActive.value) stopThinkingMusic()
-  else startThinkingMusic()
+async function toggleThinkingMusic() {
+  try {
+    await apiFetch(`/api/rooms/${roomId}/music`, 'POST', { playing: !thinkingActive.value })
+  } catch (e) { error.value = e.message }
 }
+
+watch(thinkingActive, (playing) => {
+  if (playing) startThinkingAudio()
+  else stopThinkingAudio()
+})
 
 
 function onClickOutsideMood(e) {
@@ -703,7 +708,9 @@ const allVoted = computed(() =>
 )
 
 watch(allVoted, (voted) => {
-  if (voted && thinkingActive.value) stopThinkingMusic()
+  if (voted && thinkingActive.value && isOwner.value) {
+    apiFetch(`/api/rooms/${roomId}/music`, 'POST', { playing: false }).catch(() => {})
+  }
 })
 
 const numericAverage = computed(() => {
@@ -855,6 +862,7 @@ onMounted(async () => {
     const alreadyIn = userStore.participantId && data.participants?.[userStore.participantId]
     if (alreadyIn) {
       roomStore.connectSSE(roomId)
+      if (data.music_playing) startThinkingAudio()
     } else {
       joining.value = true
     }
@@ -868,7 +876,7 @@ onBeforeUnmount(() => {
   cancelAnimationFrame(fireworksRaf)
   clearTimeout(copyToastTimer)
   document.removeEventListener('click', onClickOutsideMood, true)
-  stopThinkingMusic()
+  stopThinkingAudio()
 })
 
 onUnmounted(() => {

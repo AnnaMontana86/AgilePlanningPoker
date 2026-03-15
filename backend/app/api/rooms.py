@@ -186,12 +186,16 @@ async def new_round(room_id: str, req: OwnerActionRequest):
     room.current_round = Round(number=room.current_round.number + 1)
     if room.topics and room.current_topic_index < len(room.topics) - 1:
         room.current_topic_index += 1
+    music_was_playing = room.music_playing
+    room.music_playing = False
     store.save_room(room)
     await broadcaster.broadcast(room_id, "new_round", {
         "round_number": room.current_round.number,
         "current_topic_index": room.current_topic_index,
         "estimated_topic": estimated_topic,
     })
+    if music_was_playing:
+        await broadcaster.broadcast(room_id, "music_updated", {"playing": False})
     return {"ok": True, "round_number": room.current_round.number}
 
 
@@ -206,11 +210,15 @@ async def retry_round(room_id: str, req: OwnerActionRequest):
     for p in room.participants.values():
         p.vote = None
     room.current_round = Round(number=room.current_round.number + 1)
+    music_was_playing = room.music_playing
+    room.music_playing = False
     store.save_room(room)
     await broadcaster.broadcast(room_id, "new_round", {
         "round_number": room.current_round.number,
         "current_topic_index": room.current_topic_index,
     })
+    if music_was_playing:
+        await broadcaster.broadcast(room_id, "music_updated", {"playing": False})
     return {"ok": True, "round_number": room.current_round.number}
 
 
@@ -311,6 +319,23 @@ async def set_emoji(room_id: str, req: EmojiRequest):
         "participant_id": participant.id,
         "emoji": participant.emoji,
     })
+    return {"ok": True}
+
+
+class MusicRequest(BaseModel):
+    token: str
+    playing: bool
+
+
+@router.post("/rooms/{room_id}/music")
+async def set_music(room_id: str, req: MusicRequest):
+    room = _get_room_or_404(room_id)
+    owner = next((p for p in room.participants.values() if p.is_owner), None)
+    if not owner or req.token != owner.id:
+        raise HTTPException(status_code=403, detail="Only the owner can control music")
+    room.music_playing = req.playing
+    store.save_room(room)
+    await broadcaster.broadcast(room_id, "music_updated", {"playing": req.playing})
     return {"ok": True}
 
 

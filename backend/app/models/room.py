@@ -29,9 +29,7 @@ class Room(BaseModel):
     # timer_seconds: int | None = None
     # timer_started_at: datetime | None = None
 
-    # Future: music support
-    # music_enabled: bool = False
-    # music_url: str | None = None
+    music_playing: bool = False
 
     def touch(self) -> None:
         self.last_activity_at = datetime.utcnow()

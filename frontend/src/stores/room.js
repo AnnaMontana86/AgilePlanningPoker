@@ -55,6 +55,8 @@ export const useRoomStore = defineStore('room', () => {
       for (const p of Object.values(room.value.participants)) {
         p.vote = null
       }
+    } else if (type === 'music_updated') {
+      room.value.music_playing = data.playing
     } else if (type === 'emoji_updated') {
       const p = room.value.participants[data.participant_id]
       if (p) p.emoji = data.emoji
