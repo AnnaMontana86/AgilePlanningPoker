@@ -20,5 +20,6 @@ class TestCardSet:
 
     def test_predefined_sets_exist(self):
         assert "Fibonacci" in PREDEFINED_CARD_SETS
+        assert "Modified Fibonacci" in PREDEFINED_CARD_SETS
         assert "T-Shirt Size" in PREDEFINED_CARD_SETS
         assert "Powers-Of-2" in PREDEFINED_CARD_SETS
