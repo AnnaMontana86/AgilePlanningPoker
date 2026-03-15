@@ -7,6 +7,4 @@ class Participant(BaseModel):
     nickname: str = Field(..., min_length=1, max_length=32)
     is_owner: bool = False
     vote: str | None = None
-
-    # Future: emoji status for presence/mood sharing
-    # emoji_status: str | None = None
+    emoji: str | None = None

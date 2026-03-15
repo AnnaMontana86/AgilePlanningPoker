@@ -179,6 +179,22 @@ describe('useRoomStore', () => {
     expect(store.currentTopicIndex).toBe(0)
   })
 
+  it('emoji_updated sets emoji on participant', () => {
+    const store = useRoomStore()
+    store.setRoom(structuredClone(mockRoom))
+    store.applyEvent({ type: 'emoji_updated', data: { participant_id: 'p2', emoji: '🤔' } })
+    expect(store.room.participants['p2'].emoji).toBe('🤔')
+  })
+
+  it('emoji_updated clears emoji when null', () => {
+    const store = useRoomStore()
+    const room = structuredClone(mockRoom)
+    room.participants['p2'].emoji = '😄'
+    store.setRoom(room)
+    store.applyEvent({ type: 'emoji_updated', data: { participant_id: 'p2', emoji: null } })
+    expect(store.room.participants['p2'].emoji).toBeNull()
+  })
+
   it('clear removes room and disconnects SSE', () => {
     const store = useRoomStore()
     store.setRoom(structuredClone(mockRoom))
