@@ -48,6 +48,12 @@ class LeaveRequest(BaseModel):
     token: str
 
 
+class EmojiRequest(BaseModel):
+    participant_id: str
+    token: str
+    emoji: str | None  # None = clear emoji
+
+
 class AddTopicRequest(BaseModel):
     token: str
     short_name: str
@@ -63,6 +69,9 @@ class EditTopicRequest(BaseModel):
     token: str
     short_name: str
     link: str = ""
+
+
+ALLOWED_EMOJIS = {"🤔", "😄", "😢", "❤️", "☕", "🍺"}
 
 
 # ---------------------------------------------------------------------------
@@ -283,6 +292,25 @@ async def kick_participant(room_id: str, participant_id: str, req: KickRequest):
     del room.participants[participant_id]
     store.save_room(room)
     await broadcaster.broadcast(room_id, "participant_kicked", {"participant_id": participant_id})
+    return {"ok": True}
+
+
+@router.post("/rooms/{room_id}/emoji")
+async def set_emoji(room_id: str, req: EmojiRequest):
+    room = _get_room_or_404(room_id)
+    participant = room.participants.get(req.participant_id)
+    if not participant:
+        raise HTTPException(status_code=404, detail="Participant not found")
+    if req.token != participant.id:
+        raise HTTPException(status_code=403, detail="Invalid token")
+    if req.emoji is not None and req.emoji not in ALLOWED_EMOJIS:
+        raise HTTPException(status_code=400, detail="Emoji not allowed")
+    participant.emoji = req.emoji
+    store.save_room(room)
+    await broadcaster.broadcast(room_id, "emoji_updated", {
+        "participant_id": participant.id,
+        "emoji": participant.emoji,
+    })
     return {"ok": True}
 
 

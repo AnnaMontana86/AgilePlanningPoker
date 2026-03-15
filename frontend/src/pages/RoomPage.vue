@@ -49,6 +49,44 @@
         <!-- Right: action buttons -->
         <div class="flex items-center gap-3 justify-end">
 
+        <!-- Mood button + dropdown -->
+        <div class="relative" ref="moodAnchor">
+          <button
+            @click="moodOpen = !moodOpen"
+            :class="[
+              'flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm transition-colors',
+              moodOpen || myEmoji
+                ? 'border-indigo-400 text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20'
+                : 'border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400',
+            ]"
+            title="Mood"
+          >
+            <span v-if="myEmoji" class="text-base leading-none">{{ myEmoji }}</span>
+            <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707a1 1 0 00-1.414-1.414L9 11.172 7.707 9.879a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+            </svg>
+            Mood
+          </button>
+          <!-- Dropdown -->
+          <div
+            v-if="moodOpen"
+            class="absolute right-0 top-full mt-1.5 z-20 flex gap-1 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg px-2 py-1.5"
+          >
+            <button
+              v-for="e in EMOJIS"
+              :key="e"
+              @click="setEmoji(e); moodOpen = false"
+              :title="e"
+              :class="[
+                'text-xl rounded-lg p-1.5 transition-all border',
+                myEmoji === e
+                  ? 'border-indigo-400 bg-indigo-50 dark:bg-indigo-900/30'
+                  : 'border-transparent hover:border-gray-200 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700',
+              ]"
+            >{{ e }}</button>
+          </div>
+        </div>
+
         <!-- Share -->
         <button
           @click="copyInviteLink"
@@ -135,6 +173,18 @@
         <div v-if="isOwner" class="flex justify-center gap-3">
           <button
             v-if="!roomStore.isRevealed"
+            @click="toggleThinkingMusic"
+            :class="[
+              'rounded-lg px-8 py-2.5 font-semibold transition-colors',
+              thinkingActive
+                ? 'bg-amber-500 text-white hover:bg-amber-600'
+                : 'border border-amber-400 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20',
+            ]"
+          >
+            {{ thinkingActive ? '⏹ Stop Music' : '🎵 Thinking time…' }}
+          </button>
+          <button
+            v-if="!roomStore.isRevealed"
             @click="reveal"
             :disabled="!allVoted"
             class="rounded-lg bg-green-600 px-8 py-2.5 font-semibold text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
@@ -171,9 +221,10 @@
                   : 'border-gray-200 dark:border-gray-700'
               ]"
             >
-              <span class="font-medium">
+              <span class="font-medium flex items-center gap-1.5">
+                <span v-if="p.emoji" class="text-lg leading-none">{{ p.emoji }}</span>
                 {{ p.nickname }}
-                <span v-if="p.is_owner" class="ml-2 text-xs text-indigo-500">owner</span>
+                <span v-if="p.is_owner" class="ml-1 text-xs text-indigo-500">owner</span>
               </span>
               <span class="flex items-center gap-3">
                 <span :class="voteLabel(p).class">{{ voteLabel(p).text }}</span>
@@ -507,6 +558,53 @@ function startTimer() {
   }, 1000)
 }
 
+const EMOJIS = ['🤔', '😄', '😢', '❤️', '☕', '🍺']
+const myEmoji = ref(null)
+const moodOpen = ref(false)
+const moodAnchor = ref(null)
+
+const thinkingActive = ref(false)
+let thinkingAudio = null
+
+function startThinkingMusic() {
+  thinkingAudio = new Audio('/sounds/thinking-time.mp3')
+  thinkingAudio.loop = true
+  thinkingAudio.play()
+  thinkingActive.value = true
+}
+
+function stopThinkingMusic() {
+  thinkingAudio?.pause()
+  thinkingAudio = null
+  thinkingActive.value = false
+}
+
+function toggleThinkingMusic() {
+  if (thinkingActive.value) stopThinkingMusic()
+  else startThinkingMusic()
+}
+
+
+function onClickOutsideMood(e) {
+  if (moodAnchor.value && !moodAnchor.value.contains(e.target)) {
+    moodOpen.value = false
+  }
+}
+
+async function setEmoji(emoji) {
+  const next = myEmoji.value === emoji ? null : emoji
+  myEmoji.value = next
+  try {
+    await apiFetch(`/api/rooms/${roomId}/emoji`, 'POST', {
+      participant_id: userStore.participantId,
+      emoji: next,
+    })
+  } catch (e) {
+    myEmoji.value = myEmoji.value === null ? emoji : null // revert
+    error.value = e.message
+  }
+}
+
 const myVote = ref(null)
 
 // Reset local vote when a new round starts
@@ -603,6 +701,10 @@ const isOwner = computed(() => {
 const allVoted = computed(() =>
   roomStore.participants.length > 0 && roomStore.participants.every(p => p.vote)
 )
+
+watch(allVoted, (voted) => {
+  if (voted && thinkingActive.value) stopThinkingMusic()
+})
 
 const numericAverage = computed(() => {
   if (!roomStore.isRevealed) return null
@@ -744,6 +846,7 @@ function copyInviteLink() {
 }
 
 onMounted(async () => {
+  document.addEventListener('click', onClickOutsideMood, true)
   try {
     const res = await fetch(`/api/rooms/${roomId}`)
     if (!res.ok) { router.push({ name: 'home' }); return }
@@ -764,6 +867,8 @@ onBeforeUnmount(() => {
   clearInterval(timerInterval)
   cancelAnimationFrame(fireworksRaf)
   clearTimeout(copyToastTimer)
+  document.removeEventListener('click', onClickOutsideMood, true)
+  stopThinkingMusic()
 })
 
 onUnmounted(() => {

@@ -1,7 +1,12 @@
 <template>
   <main class="flex min-h-screen items-center justify-center p-4">
     <div class="w-full max-w-md space-y-6">
-      <h1 class="text-3xl font-bold text-center">Planning Poker</h1>
+      <div class="text-center space-y-1">
+        <p class="text-xs font-semibold tracking-widest text-indigo-500 uppercase">Agile Estimation</p>
+        <h1 class="text-4xl font-extrabold bg-gradient-to-r from-indigo-600 to-purple-500 bg-clip-text text-transparent">
+          Planning Poker
+        </h1>
+      </div>
 
       <!-- Nickname -->
       <section class="space-y-2">

@@ -55,6 +55,9 @@ export const useRoomStore = defineStore('room', () => {
       for (const p of Object.values(room.value.participants)) {
         p.vote = null
       }
+    } else if (type === 'emoji_updated') {
+      const p = room.value.participants[data.participant_id]
+      if (p) p.emoji = data.emoji
     } else if (type === 'topic_updated') {
       const idx = room.value.topics.findIndex(t => t.id === data.topic.id)
       if (idx !== -1) room.value.topics[idx] = data.topic
