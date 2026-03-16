@@ -88,16 +88,24 @@
         </div>
 
         <!-- Share -->
-        <button
-          @click="copyInviteLink"
-          title="Copy Invite Link"
-          class="flex items-center gap-1.5 rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-300 hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-            <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" />
-          </svg>
-          Share
-        </button>
+        <div class="relative" @mouseenter="onShareEnter" @mouseleave="onShareLeave">
+          <button
+            @click="copyInviteLink"
+            title="Copy Invite Link"
+            class="flex items-center gap-1.5 rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-300 hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+              <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" />
+            </svg>
+            Share
+          </button>
+          <div
+            v-if="showQR && qrDataUrl"
+            class="absolute right-0 top-full mt-2 z-20 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg p-2"
+          >
+            <img :src="qrDataUrl" alt="Room invite QR code" width="160" height="160" class="rounded" />
+          </div>
+        </div>
 
         <!-- Timer (owner only) -->
         <button
@@ -514,6 +522,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useRoomStore } from '../stores/room'
 import { useUserStore } from '../stores/user'
 import { useThemeStore } from '../stores/theme'
+import QRCode from 'qrcode'
 
 const route = useRoute()
 const router = useRouter()
@@ -884,6 +893,22 @@ async function leaveRoom() {
 const copyToast = ref(false)
 let copyToastTimer = null
 
+const showQR = ref(false)
+const qrDataUrl = ref('')
+let qrHideTimer = null
+
+async function onShareEnter() {
+  clearTimeout(qrHideTimer)
+  if (!qrDataUrl.value) {
+    qrDataUrl.value = await QRCode.toDataURL(window.location.href, { width: 160, margin: 1 })
+  }
+  showQR.value = true
+}
+
+function onShareLeave() {
+  qrHideTimer = setTimeout(() => { showQR.value = false }, 400)
+}
+
 function copyInviteLink() {
   navigator.clipboard.writeText(window.location.href)
   if (copyToastTimer) clearTimeout(copyToastTimer)
@@ -915,6 +940,7 @@ onBeforeUnmount(() => {
   cancelAnimationFrame(fireworksRaf)
   clearTimeout(copyToastTimer)
   clearTimeout(volumeHideTimer)
+  clearTimeout(qrHideTimer)
   document.removeEventListener('click', onClickOutsideMood, true)
   stopThinkingAudio()
 })
