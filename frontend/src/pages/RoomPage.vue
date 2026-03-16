@@ -171,18 +171,40 @@
 
         <!-- Owner action (centered) -->
         <div v-if="isOwner" class="flex justify-center gap-3">
-          <button
-            v-if="!roomStore.isRevealed"
-            @click="toggleThinkingMusic"
-            :class="[
-              'rounded-lg px-8 py-2.5 font-semibold transition-colors',
-              thinkingActive
-                ? 'bg-amber-500 text-white hover:bg-amber-600'
-                : 'border border-amber-400 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20',
-            ]"
+          <div
+            class="relative"
+            data-testid="thinking-music-wrapper"
+            @mouseenter="onMusicWrapperEnter"
+            @mouseleave="onMusicWrapperLeave"
           >
-            {{ thinkingActive ? '⏹ Stop Music' : '🎵 Thinking time…' }}
-          </button>
+            <button
+              v-if="!roomStore.isRevealed"
+              @click="toggleThinkingMusic"
+              :disabled="allVoted && !thinkingActive"
+              :class="[
+                'rounded-lg px-8 py-2.5 font-semibold transition-colors',
+                thinkingActive
+                  ? 'bg-amber-500 text-white hover:bg-amber-600'
+                  : 'border border-amber-400 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20',
+                allVoted && !thinkingActive ? 'opacity-50 cursor-not-allowed' : '',
+              ]"
+            >
+              {{ thinkingActive ? '⏹ Stop Music' : '🎵 Thinking time…' }}
+            </button>
+            <div
+              v-if="thinkingActive && showVolume"
+              class="absolute left-0 right-0 -bottom-8 flex items-center gap-1 px-2"
+            >
+              <span class="text-xs">🔈</span>
+              <input
+                type="range"
+                min="0" max="1" step="0.01"
+                v-model.number="volumeLevel"
+                class="w-full h-1 accent-amber-500 cursor-pointer"
+              />
+              <span class="text-xs">🔊</span>
+            </div>
+          </div>
           <button
             v-if="!roomStore.isRevealed"
             @click="reveal"
@@ -564,14 +586,31 @@ const moodOpen = ref(false)
 const moodAnchor = ref(null)
 
 const thinkingActive = computed(() => roomStore.room?.music_playing ?? false)
+const volumeLevel = ref(0.05)
+const showVolume = ref(false)
 let thinkingAudio = null
+let volumeHideTimer = null
+
+function onMusicWrapperEnter() {
+  clearTimeout(volumeHideTimer)
+  showVolume.value = true
+}
+
+function onMusicWrapperLeave() {
+  volumeHideTimer = setTimeout(() => { showVolume.value = false }, 400)
+}
 
 function startThinkingAudio() {
   if (thinkingAudio) return
   thinkingAudio = new Audio('/sounds/thinking-time.mp3')
   thinkingAudio.loop = true
+  thinkingAudio.volume = volumeLevel.value
   thinkingAudio.play()
 }
+
+watch(volumeLevel, v => {
+  if (thinkingAudio) thinkingAudio.volume = v
+})
 
 function stopThinkingAudio() {
   thinkingAudio?.pause()
@@ -875,6 +914,7 @@ onBeforeUnmount(() => {
   clearInterval(timerInterval)
   cancelAnimationFrame(fireworksRaf)
   clearTimeout(copyToastTimer)
+  clearTimeout(volumeHideTimer)
   document.removeEventListener('click', onClickOutsideMood, true)
   stopThinkingAudio()
 })
