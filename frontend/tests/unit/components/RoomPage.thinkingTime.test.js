@@ -120,7 +120,7 @@ describe('Thinking time button', () => {
     await mountWithRoom(room)
 
     expect(audioInstance).not.toBeNull()
-    expect(audioInstance.volume).toBe(0.05)
+    expect(audioInstance.volume).toBe(0.10)
   })
 
   it('shows volume slider on mouseenter when music is playing', async () => {
