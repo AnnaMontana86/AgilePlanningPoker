@@ -62,10 +62,16 @@
             title="Mood"
           >
             <span v-if="myEmoji" class="text-base leading-none">{{ myEmoji }}</span>
-            <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707a1 1 0 00-1.414-1.414L9 11.172 7.707 9.879a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+            <svg v-else class="h-4 w-4" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <mask id="mood-icon-mask">
+                  <circle cx="510.944" cy="512" r="448" fill="white"/>
+                  <path fill="black" d="M512 773.344c-89.184 0-171.904-40.32-226.912-110.624-10.88-13.92-8.448-34.016 5.472-44.896 13.888-10.912 34.016-8.48 44.928 5.472 42.784 54.688 107.136 86.048 176.512 86.048 70.112 0 134.88-31.904 177.664-87.552 10.784-14.016 30.848-16.672 44.864-5.888 14.016 10.784 16.672 30.88 5.888 44.864C685.408 732.32 602.144 773.344 512 773.344zM368 515.2c-26.528 0-48-21.472-48-48v-64c0-26.528 21.472-48 48-48s48 21.472 48 48v64c0 26.496-21.504 48-48 48zM656 515.2c-26.496 0-48-21.472-48-48v-64c0-26.528 21.504-48 48-48s48 21.472 48 48v64c0 26.496-21.504 48-48 48z"/>
+                </mask>
+              </defs>
+              <circle cx="510.944" cy="512" r="448" fill="currentColor" mask="url(#mood-icon-mask)"/>
             </svg>
-            Mood
+            <span class="hidden sm:inline">Mood</span>
           </button>
           <!-- Dropdown -->
           <div
@@ -97,11 +103,11 @@
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
               <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" />
             </svg>
-            Share
+            <span class="hidden sm:inline">Share</span>
           </button>
           <div
             v-if="showQR && qrDataUrl"
-            class="absolute right-0 top-full mt-2 z-20 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg p-2"
+            class="absolute right-0 top-full mt-2 z-20 w-[160px] rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg p-2"
           >
             <img :src="qrDataUrl" alt="Room invite QR code" width="160" height="160" class="rounded" />
           </div>
@@ -117,7 +123,7 @@
           <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
             <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd" />
           </svg>
-          Timer
+          <span class="hidden sm:inline">Timer</span>
         </button>
 
         <!-- Leave -->
@@ -129,7 +135,7 @@
           <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
             <path fill-rule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 001 1h7a1 1 0 000-2H4V5h6a1 1 0 000-2H3zm11.293 4.293a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 01-1.414-1.414L15.586 11H9a1 1 0 010-2h6.586l-1.293-1.293a1 1 0 010-1.414z" clip-rule="evenodd" />
           </svg>
-          Leave
+          <span class="hidden sm:inline">Leave</span>
         </button>
 
         <!-- Theme toggle -->
@@ -248,7 +254,11 @@
                 'flex items-center justify-between rounded-lg border bg-white dark:bg-gray-800 px-4 py-3',
                 !roomStore.isRevealed && p.vote
                   ? 'border-green-400 dark:border-green-500'
-                  : 'border-gray-200 dark:border-gray-700'
+                  : voteExtremes.highest.has(p.id)
+                    ? 'border-orange-400 dark:border-orange-500'
+                    : voteExtremes.lowest.has(p.id)
+                      ? 'border-blue-400 dark:border-blue-500'
+                      : 'border-gray-200 dark:border-gray-700'
               ]"
             >
               <span class="font-medium flex items-center gap-1.5">
@@ -258,6 +268,10 @@
               </span>
               <span class="flex items-center gap-3">
                 <span :class="voteLabel(p).class">{{ voteLabel(p).text }}</span>
+                <span v-if="roomStore.isRevealed && voteExtremes.highest.has(p.id)"
+                  class="text-xs font-semibold text-orange-500">▲</span>
+                <span v-if="roomStore.isRevealed && voteExtremes.lowest.has(p.id)"
+                  class="text-xs font-semibold text-blue-500">▼</span>
                 <button
                   v-if="isOwner && !p.is_owner"
                   @click="kick(p.id)"
@@ -761,6 +775,21 @@ watch(allVoted, (voted) => {
   }
 })
 
+const voteExtremes = computed(() => {
+  if (!roomStore.isRevealed) return { highest: new Set(), lowest: new Set() }
+  const numeric = roomStore.participants
+    .map(p => ({ id: p.id, n: parseFloat(p.vote) }))
+    .filter(p => !isNaN(p.n))
+  if (numeric.length < 2) return { highest: new Set(), lowest: new Set() }
+  const max = Math.max(...numeric.map(p => p.n))
+  const min = Math.min(...numeric.map(p => p.n))
+  if (max === min) return { highest: new Set(), lowest: new Set() }
+  return {
+    highest: new Set(numeric.filter(p => p.n === max).map(p => p.id)),
+    lowest:  new Set(numeric.filter(p => p.n === min).map(p => p.id)),
+  }
+})
+
 const numericAverage = computed(() => {
   if (!roomStore.isRevealed) return null
   const nums = roomStore.participants
@@ -772,7 +801,7 @@ const numericAverage = computed(() => {
 
 function voteLabel(participant) {
   if (!roomStore.isRevealed) {
-    if (participant.vote) return { text: '✓', class: 'text-green-500 font-bold text-xl' }
+    if (participant.vote) return { text: '✓', class: 'text-green-500 font-bold text-[22px]' }
     return { text: '…', class: 'text-gray-400' }
   }
   return { text: participant.vote ?? '–', class: 'font-bold' }
@@ -899,9 +928,7 @@ let qrHideTimer = null
 
 async function onShareEnter() {
   clearTimeout(qrHideTimer)
-  if (!qrDataUrl.value) {
-    qrDataUrl.value = await QRCode.toDataURL(window.location.href, { width: 160, margin: 1 })
-  }
+  qrDataUrl.value = await QRCode.toDataURL(window.location.href, { width: 160, margin: 1 })
   showQR.value = true
 }
 
