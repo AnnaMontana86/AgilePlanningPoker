@@ -72,6 +72,12 @@ export const useRoomStore = defineStore('room', () => {
       room.value.current_topic_index = data.current_topic_index
     } else if (type === 'topic_selected') {
       room.value.current_topic_index = data.current_topic_index
+    } else if (type === 'participant_suspended') {
+      const p = room.value.participants[data.participant_id]
+      if (p) { p.suspended = true; p.vote = null }
+    } else if (type === 'participant_unsuspended') {
+      const p = room.value.participants[data.participant_id]
+      if (p) p.suspended = false
     } else if (type === 'timer_started') {
       room.value.timer_ends_at = data.ends_at
     } else if (type === 'timer_stopped') {

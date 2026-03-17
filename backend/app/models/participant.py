@@ -8,3 +8,4 @@ class Participant(BaseModel):
     is_owner: bool = False
     vote: str | None = None
     emoji: str | None = None
+    suspended: bool = False

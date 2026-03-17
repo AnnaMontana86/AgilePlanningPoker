@@ -251,20 +251,23 @@
               v-for="p in roomStore.participants"
               :key="p.id"
               :class="[
-                'flex items-center justify-between rounded-lg border bg-white dark:bg-gray-800 px-4 py-3',
-                !roomStore.isRevealed && p.vote
-                  ? 'border-green-400 dark:border-green-500'
-                  : voteExtremes.highest.has(p.id)
-                    ? 'border-orange-400 dark:border-orange-500'
-                    : voteExtremes.lowest.has(p.id)
-                      ? 'border-blue-400 dark:border-blue-500'
-                      : 'border-gray-200 dark:border-gray-700'
+                'flex items-center justify-between rounded-lg border bg-white dark:bg-gray-800 px-4 py-3 transition-opacity',
+                p.suspended
+                  ? 'opacity-50 border-gray-200 dark:border-gray-700'
+                  : !roomStore.isRevealed && p.vote
+                    ? 'border-green-400 dark:border-green-500'
+                    : voteExtremes.highest.has(p.id)
+                      ? 'border-orange-400 dark:border-orange-500'
+                      : voteExtremes.lowest.has(p.id)
+                        ? 'border-blue-400 dark:border-blue-500'
+                        : 'border-gray-200 dark:border-gray-700'
               ]"
             >
               <span class="font-medium flex items-center gap-1.5">
                 <span v-if="p.emoji" class="text-lg leading-none">{{ p.emoji }}</span>
                 {{ p.nickname }}
                 <span v-if="p.is_owner" class="ml-1 text-xs text-indigo-500">owner</span>
+                <span v-if="p.suspended" class="ml-1 text-xs text-yellow-500 dark:text-yellow-400">suspended</span>
               </span>
               <span class="flex items-center gap-3">
                 <span :class="voteLabel(p).class">{{ voteLabel(p).text }}</span>
@@ -274,10 +277,16 @@
                   class="text-xs font-semibold text-blue-500">▼</span>
                 <button
                   v-if="isOwner && !p.is_owner"
-                  @click="kick(p.id)"
-                  class="text-xs text-red-500 hover:underline"
+                  @click="suspend(p.id)"
+                  :title="p.suspended ? 'Already suspended' : 'Suspend participant'"
+                  :disabled="p.suspended"
+                  class="text-gray-400 hover:text-yellow-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                 >
-                  kick
+                  <!-- Pause icon -->
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                    <rect x="6" y="4" width="4" height="16" rx="1"/>
+                    <rect x="14" y="4" width="4" height="16" rx="1"/>
+                  </svg>
                 </button>
               </span>
             </li>
@@ -291,6 +300,7 @@
         <!-- Card selection (centered) -->
         <section v-if="!roomStore.isRevealed" class="flex flex-col items-center gap-3">
           <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wide">Your vote</h3>
+          <p v-if="isSuspended" class="text-sm text-yellow-600 dark:text-yellow-400">You are suspended — pick a card to re-enable yourself.</p>
           <div class="flex flex-wrap justify-center gap-3">
             <button
               v-for="card in roomStore.cardSet?.cards"
@@ -803,9 +813,15 @@ const isOwner = computed(() => {
   return me?.is_owner ?? false
 })
 
-const allVoted = computed(() =>
-  roomStore.participants.length > 0 && roomStore.participants.every(p => p.vote)
-)
+const isSuspended = computed(() => {
+  const me = roomStore.room?.participants?.[userStore.participantId]
+  return me?.suspended ?? false
+})
+
+const allVoted = computed(() => {
+  const active = roomStore.participants.filter(p => !p.suspended)
+  return active.length > 0 && active.every(p => p.vote)
+})
 
 watch(allVoted, (voted) => {
   if (voted && thinkingActive.value && isOwner.value) {
@@ -948,6 +964,12 @@ async function saveEditTopic() {
 async function kick(participantId) {
   try {
     await apiFetch(`/api/rooms/${roomId}/participants/${participantId}`, 'DELETE')
+  } catch (e) { error.value = e.message }
+}
+
+async function suspend(participantId) {
+  try {
+    await apiFetch(`/api/rooms/${roomId}/participants/${participantId}/suspend`, 'POST')
   } catch (e) { error.value = e.message }
 }
 

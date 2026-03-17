@@ -152,8 +152,13 @@ async def vote(room_id: str, req: VoteRequest):
         raise HTTPException(status_code=403, detail="Invalid token")
     if req.card is not None and req.card not in room.card_set.cards:
         raise HTTPException(status_code=400, detail="Card not in card set")
+    was_suspended = participant.suspended
+    if req.card is not None and was_suspended:
+        participant.suspended = False
     participant.vote = req.card
     store.save_room(room)
+    if was_suspended and req.card is not None:
+        await broadcaster.broadcast(room_id, "participant_unsuspended", {"participant_id": participant.id})
     event = "vote_cast" if req.card else "vote_retracted"
     await broadcaster.broadcast(room_id, event, {"participant_id": participant.id})
     return {"ok": True}
@@ -308,6 +313,24 @@ async def delete_topic(room_id: str, topic_id: str, req: KickRequest):
         "topic_id": topic_id,
         "current_topic_index": room.current_topic_index,
     })
+    return {"ok": True}
+
+
+@router.post("/rooms/{room_id}/participants/{participant_id}/suspend")
+async def suspend_participant(room_id: str, participant_id: str, req: OwnerActionRequest):
+    room = _get_room_or_404(room_id)
+    owner = next((p for p in room.participants.values() if p.is_owner), None)
+    if not owner or req.token != owner.id:
+        raise HTTPException(status_code=403, detail="Only the room owner can suspend participants")
+    if participant_id not in room.participants:
+        raise HTTPException(status_code=404, detail="Participant not found")
+    if room.participants[participant_id].is_owner:
+        raise HTTPException(status_code=400, detail="Cannot suspend the room owner")
+    participant = room.participants[participant_id]
+    participant.suspended = True
+    participant.vote = None
+    store.save_room(room)
+    await broadcaster.broadcast(room_id, "participant_suspended", {"participant_id": participant_id})
     return {"ok": True}
 
 
