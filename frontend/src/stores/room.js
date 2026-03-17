@@ -57,6 +57,7 @@ export const useRoomStore = defineStore('room', () => {
       }
     } else if (type === 'music_updated') {
       room.value.music_playing = data.playing
+      if (data.volume !== undefined) room.value.music_volume = data.volume
     } else if (type === 'emoji_updated') {
       const p = room.value.participants[data.participant_id]
       if (p) p.emoji = data.emoji

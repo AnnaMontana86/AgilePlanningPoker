@@ -28,6 +28,7 @@ class Room(BaseModel):
     timer_ends_at: datetime | None = None
 
     music_playing: bool = False
+    music_volume: float = 0.05
 
     def touch(self) -> None:
         self.last_activity_at = datetime.utcnow()

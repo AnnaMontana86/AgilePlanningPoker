@@ -377,6 +377,7 @@ class TimerRequest(BaseModel):
 class MusicRequest(BaseModel):
     token: str
     playing: bool
+    volume: float | None = None
 
 
 @router.post("/rooms/{room_id}/music")
@@ -386,8 +387,10 @@ async def set_music(room_id: str, req: MusicRequest):
     if not owner or req.token != owner.id:
         raise HTTPException(status_code=403, detail="Only the owner can control music")
     room.music_playing = req.playing
+    if req.volume is not None:
+        room.music_volume = max(0.0, min(1.0, req.volume))
     store.save_room(room)
-    await broadcaster.broadcast(room_id, "music_updated", {"playing": req.playing})
+    await broadcaster.broadcast(room_id, "music_updated", {"playing": req.playing, "volume": room.music_volume})
     return {"ok": True}
 
 
