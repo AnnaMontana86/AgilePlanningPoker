@@ -25,9 +25,7 @@ class Room(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     last_activity_at: datetime = Field(default_factory=datetime.utcnow)
 
-    # Future: timer support
-    # timer_seconds: int | None = None
-    # timer_started_at: datetime | None = None
+    timer_ends_at: datetime | None = None
 
     music_playing: bool = False
 

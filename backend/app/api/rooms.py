@@ -3,6 +3,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 import asyncio
 import json
+from datetime import timedelta
 
 from app.models.card_set import CardSet, PREDEFINED_CARD_SETS
 from app.models.participant import Participant
@@ -345,6 +346,11 @@ async def set_emoji(room_id: str, req: EmojiRequest):
     return {"ok": True}
 
 
+class TimerRequest(BaseModel):
+    token: str
+    duration_seconds: int
+
+
 class MusicRequest(BaseModel):
     token: str
     playing: bool
@@ -360,6 +366,22 @@ async def set_music(room_id: str, req: MusicRequest):
     store.save_room(room)
     await broadcaster.broadcast(room_id, "music_updated", {"playing": req.playing})
     return {"ok": True}
+
+
+@router.post("/rooms/{room_id}/timer")
+async def start_timer(room_id: str, req: TimerRequest):
+    room = _get_room_or_404(room_id)
+    owner = next((p for p in room.participants.values() if p.is_owner), None)
+    if not owner or req.token != owner.id:
+        raise HTTPException(status_code=403, detail="Only the room owner can set the timer")
+    if req.duration_seconds < 1:
+        raise HTTPException(status_code=400, detail="Duration must be at least 1 second")
+    from datetime import datetime
+    room.timer_ends_at = datetime.utcnow() + timedelta(seconds=req.duration_seconds)
+    store.save_room(room)
+    ends_at = room.timer_ends_at.isoformat()
+    await broadcaster.broadcast(room_id, "timer_started", {"ends_at": ends_at})
+    return {"ok": True, "ends_at": ends_at}
 
 
 @router.post("/rooms/{room_id}/leave")

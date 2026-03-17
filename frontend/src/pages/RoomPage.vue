@@ -591,12 +591,11 @@ const formattedTimer = computed(() => {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
 })
 
-function startTimer() {
-  if (!timerInput.value || timerInput.value < 1) return
-  const seconds = timerUnit.value === 'minutes' ? timerInput.value * 60 : timerInput.value
-  timerRemaining.value = seconds
-  timerDialog.value = false
+function startCountdownFrom(endsAt) {
   clearInterval(timerInterval)
+  const remaining = Math.round((new Date(endsAt) - Date.now()) / 1000)
+  if (remaining <= 0) { timerRemaining.value = 0; return }
+  timerRemaining.value = remaining
   timerInterval = setInterval(() => {
     timerRemaining.value--
     if (timerRemaining.value <= 0) {
@@ -604,6 +603,21 @@ function startTimer() {
       clearInterval(timerInterval)
     }
   }, 1000)
+}
+
+watch(() => roomStore.room?.timer_ends_at, (endsAt) => {
+  if (endsAt) startCountdownFrom(endsAt)
+})
+
+async function startTimer() {
+  if (!timerInput.value || timerInput.value < 1) return
+  const seconds = timerUnit.value === 'minutes' ? timerInput.value * 60 : timerInput.value
+  timerDialog.value = false
+  await fetch(`/api/rooms/${roomId}/timer`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token: userStore.token, duration_seconds: seconds }),
+  })
 }
 
 const EMOJIS = ['🤔', '😄', '😢', '❤️', '☕', '🍺']
@@ -963,6 +977,7 @@ onMounted(async () => {
     if (alreadyIn) {
       roomStore.connectSSE(roomId)
       if (data.music_playing) startThinkingAudio()
+      if (data.timer_ends_at) startCountdownFrom(data.timer_ends_at)
     } else {
       joining.value = true
     }
