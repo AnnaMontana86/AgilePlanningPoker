@@ -189,7 +189,9 @@ async def new_round(room_id: str, req: OwnerActionRequest):
     estimated_topic = None
     if room.topics and room.current_topic_index < len(room.topics):
         topic = room.topics[room.current_topic_index]
-        topic.estimates = [p.vote for p in room.participants.values() if p.vote is not None]
+        card_order = {card: i for i, card in enumerate(room.card_set.cards)}
+        votes = [p.vote for p in room.participants.values() if p.vote is not None]
+        topic.estimates = sorted(votes, key=lambda v: card_order.get(v, len(room.card_set.cards)))
         estimated_topic = topic.model_dump()
     for p in room.participants.values():
         p.vote = None
