@@ -228,6 +228,8 @@ async def add_topic(room_id: str, req: AddTopicRequest):
     owner = next((p for p in room.participants.values() if p.is_owner), None)
     if not owner or req.token != owner.id:
         raise HTTPException(status_code=403, detail="Only the room owner can add topics")
+    if any(t.short_name == req.short_name for t in room.topics):
+        raise HTTPException(status_code=409, detail="A topic with this short name already exists in the room")
     topic = Topic(short_name=req.short_name, link=req.link)
     room.topics.append(topic)
     store.save_room(room)
@@ -259,6 +261,8 @@ async def edit_topic(room_id: str, topic_id: str, req: EditTopicRequest):
     topic = next((t for t in room.topics if t.id == topic_id), None)
     if not topic:
         raise HTTPException(status_code=404, detail="Topic not found")
+    if req.short_name != topic.short_name and any(t.short_name == req.short_name for t in room.topics):
+        raise HTTPException(status_code=409, detail="A topic with this short name already exists in the room")
     topic.short_name = req.short_name
     topic.link = req.link
     store.save_room(room)
