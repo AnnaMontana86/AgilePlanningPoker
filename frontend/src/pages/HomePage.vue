@@ -83,9 +83,25 @@
           >
             <option value="">Select a card set</option>
             <option v-for="(cards, name) in cardSets" :key="name" :value="name">
-            {{ name }} ({{ cards.slice(0, 5).join(', ') }}{{ cards.length > 5 ? ', …' : '' }})
-          </option>
+              {{ name }} ({{ cards.slice(0, 5).join(', ') }}{{ cards.length > 5 ? ', …' : '' }})
+            </option>
+            <option value="__custom__">Custom…</option>
           </select>
+          <div v-if="selectedCardSet === '__custom__'" class="space-y-1">
+            <input
+              v-model="customCardInput"
+              @input="customCardError = ''"
+              type="text"
+              placeholder="e.g. 1, 2, 3, 5, 8, 13, ?"
+              class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+            />
+            <p v-if="customCardError" class="text-red-500 text-xs">{{ customCardError }}</p>
+            <p v-else-if="parsedCustomCards.length" class="text-gray-500 dark:text-gray-400 text-xs">
+              {{ parsedCustomCards.length }} card{{ parsedCustomCards.length !== 1 ? 's' : '' }}:
+              {{ parsedCustomCards.join(', ') }}
+            </p>
+            <p v-else class="text-gray-400 dark:text-gray-500 text-xs">Enter comma-separated values (2–20)</p>
+          </div>
           <button
             :disabled="!canCreate"
             @click="createRoom"
@@ -133,7 +149,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '../stores/user'
 
@@ -144,6 +160,8 @@ const userStore = useUserStore()
 const nickname = ref(userStore.nickname)
 const newRoomName = ref('')
 const selectedCardSet = ref('')
+const customCardInput = ref('')
+const customCardError = ref('')
 const joinCode = ref('')
 const cardSets = ref({})
 const error = ref('')
@@ -151,8 +169,30 @@ const showCreate = ref(false)
 const showJoin = ref(false)
 const nicknameError = ref(false)
 
-const canCreate = computed(() => nickname.value.trim() && newRoomName.value.trim() && selectedCardSet.value)
+const parsedCustomCards = computed(() =>
+  customCardInput.value
+    .split(',')
+    .map(s => s.trim())
+    .filter(s => s.length > 0)
+)
+
+const canCreate = computed(() => {
+  if (!nickname.value.trim() || !newRoomName.value.trim() || !selectedCardSet.value) return false
+  if (selectedCardSet.value === '__custom__') {
+    return parsedCustomCards.value.length >= 2 && parsedCustomCards.value.length <= 20
+  }
+  return true
+})
 const canJoin = computed(() => nickname.value.trim() && joinCode.value.trim())
+
+watch(showCreate, open => {
+  if (!open) {
+    newRoomName.value = ''
+    selectedCardSet.value = ''
+    customCardInput.value = ''
+    customCardError.value = ''
+  }
+})
 
 onMounted(async () => {
   try {
@@ -170,16 +210,29 @@ onMounted(async () => {
 
 async function createRoom() {
   error.value = ''
+  customCardError.value = ''
+
+  if (selectedCardSet.value === '__custom__') {
+    if (parsedCustomCards.value.length < 2) {
+      customCardError.value = 'Enter at least 2 values.'
+      return
+    }
+    if (parsedCustomCards.value.length > 20) {
+      customCardError.value = 'Maximum 20 values allowed.'
+      return
+    }
+  }
+
   userStore.setNickname(nickname.value.trim())
+  const body = selectedCardSet.value === '__custom__'
+    ? { name: newRoomName.value.trim(), custom_card_set: { name: 'Custom', cards: parsedCustomCards.value }, owner_nickname: userStore.nickname }
+    : { name: newRoomName.value.trim(), card_set_name: selectedCardSet.value, owner_nickname: userStore.nickname }
+
   try {
     const res = await fetch('/api/rooms', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: newRoomName.value.trim(),
-        card_set_name: selectedCardSet.value,
-        owner_nickname: userStore.nickname,
-      }),
+      body: JSON.stringify(body),
     })
     if (!res.ok) throw new Error(await res.text())
     const data = await res.json()

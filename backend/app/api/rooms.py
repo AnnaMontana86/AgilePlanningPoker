@@ -3,6 +3,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 import asyncio
 import json
+from datetime import timedelta
 
 from app.models.card_set import CardSet, PREDEFINED_CARD_SETS
 from app.models.participant import Participant
@@ -69,6 +70,10 @@ class EditTopicRequest(BaseModel):
     token: str
     short_name: str
     link: str = ""
+
+
+class SelectTopicRequest(BaseModel):
+    token: str
 
 
 ALLOWED_EMOJIS = {"🤔", "😄", "😢", "❤️", "☕", "🍺"}
@@ -147,8 +152,13 @@ async def vote(room_id: str, req: VoteRequest):
         raise HTTPException(status_code=403, detail="Invalid token")
     if req.card is not None and req.card not in room.card_set.cards:
         raise HTTPException(status_code=400, detail="Card not in card set")
+    was_suspended = participant.suspended
+    if req.card is not None and was_suspended:
+        participant.suspended = False
     participant.vote = req.card
     store.save_room(room)
+    if was_suspended and req.card is not None:
+        await broadcaster.broadcast(room_id, "participant_unsuspended", {"participant_id": participant.id})
     event = "vote_cast" if req.card else "vote_retracted"
     await broadcaster.broadcast(room_id, event, {"participant_id": participant.id})
     return {"ok": True}
@@ -179,7 +189,9 @@ async def new_round(room_id: str, req: OwnerActionRequest):
     estimated_topic = None
     if room.topics and room.current_topic_index < len(room.topics):
         topic = room.topics[room.current_topic_index]
-        topic.estimates = [p.vote for p in room.participants.values() if p.vote is not None]
+        card_order = {card: i for i, card in enumerate(room.card_set.cards)}
+        votes = [p.vote for p in room.participants.values() if p.vote is not None]
+        topic.estimates = sorted(votes, key=lambda v: card_order.get(v, len(room.card_set.cards)))
         estimated_topic = topic.model_dump()
     for p in room.participants.values():
         p.vote = None
@@ -228,6 +240,8 @@ async def add_topic(room_id: str, req: AddTopicRequest):
     owner = next((p for p in room.participants.values() if p.is_owner), None)
     if not owner or req.token != owner.id:
         raise HTTPException(status_code=403, detail="Only the room owner can add topics")
+    if any(t.short_name == req.short_name for t in room.topics):
+        raise HTTPException(status_code=409, detail="A topic with this short name already exists in the room")
     topic = Topic(short_name=req.short_name, link=req.link)
     room.topics.append(topic)
     store.save_room(room)
@@ -259,11 +273,28 @@ async def edit_topic(room_id: str, topic_id: str, req: EditTopicRequest):
     topic = next((t for t in room.topics if t.id == topic_id), None)
     if not topic:
         raise HTTPException(status_code=404, detail="Topic not found")
+    if req.short_name != topic.short_name and any(t.short_name == req.short_name for t in room.topics):
+        raise HTTPException(status_code=409, detail="A topic with this short name already exists in the room")
     topic.short_name = req.short_name
     topic.link = req.link
     store.save_room(room)
     await broadcaster.broadcast(room_id, "topic_updated", {"topic": topic.model_dump()})
     return {"topic": topic.model_dump()}
+
+
+@router.post("/rooms/{room_id}/topics/{topic_id}/select")
+async def select_topic(room_id: str, topic_id: str, req: SelectTopicRequest):
+    room = _get_room_or_404(room_id)
+    owner = next((p for p in room.participants.values() if p.is_owner), None)
+    if not owner or req.token != owner.id:
+        raise HTTPException(status_code=403, detail="Only the room owner can select topics")
+    idx = next((i for i, t in enumerate(room.topics) if t.id == topic_id), None)
+    if idx is None:
+        raise HTTPException(status_code=404, detail="Topic not found")
+    room.current_topic_index = idx
+    store.save_room(room)
+    await broadcaster.broadcast(room_id, "topic_selected", {"current_topic_index": idx})
+    return {"ok": True, "current_topic_index": idx}
 
 
 @router.delete("/rooms/{room_id}/topics/{topic_id}")
@@ -284,6 +315,24 @@ async def delete_topic(room_id: str, topic_id: str, req: KickRequest):
         "topic_id": topic_id,
         "current_topic_index": room.current_topic_index,
     })
+    return {"ok": True}
+
+
+@router.post("/rooms/{room_id}/participants/{participant_id}/suspend")
+async def suspend_participant(room_id: str, participant_id: str, req: OwnerActionRequest):
+    room = _get_room_or_404(room_id)
+    owner = next((p for p in room.participants.values() if p.is_owner), None)
+    if not owner or req.token != owner.id:
+        raise HTTPException(status_code=403, detail="Only the room owner can suspend participants")
+    if participant_id not in room.participants:
+        raise HTTPException(status_code=404, detail="Participant not found")
+    if room.participants[participant_id].is_owner:
+        raise HTTPException(status_code=400, detail="Cannot suspend the room owner")
+    participant = room.participants[participant_id]
+    participant.suspended = True
+    participant.vote = None
+    store.save_room(room)
+    await broadcaster.broadcast(room_id, "participant_suspended", {"participant_id": participant_id})
     return {"ok": True}
 
 
@@ -322,9 +371,15 @@ async def set_emoji(room_id: str, req: EmojiRequest):
     return {"ok": True}
 
 
+class TimerRequest(BaseModel):
+    token: str
+    duration_seconds: int
+
+
 class MusicRequest(BaseModel):
     token: str
     playing: bool
+    volume: float | None = None
 
 
 @router.post("/rooms/{room_id}/music")
@@ -334,8 +389,38 @@ async def set_music(room_id: str, req: MusicRequest):
     if not owner or req.token != owner.id:
         raise HTTPException(status_code=403, detail="Only the owner can control music")
     room.music_playing = req.playing
+    if req.volume is not None:
+        room.music_volume = max(0.0, min(1.0, req.volume))
     store.save_room(room)
-    await broadcaster.broadcast(room_id, "music_updated", {"playing": req.playing})
+    await broadcaster.broadcast(room_id, "music_updated", {"playing": req.playing, "volume": room.music_volume})
+    return {"ok": True}
+
+
+@router.post("/rooms/{room_id}/timer")
+async def start_timer(room_id: str, req: TimerRequest):
+    room = _get_room_or_404(room_id)
+    owner = next((p for p in room.participants.values() if p.is_owner), None)
+    if not owner or req.token != owner.id:
+        raise HTTPException(status_code=403, detail="Only the room owner can set the timer")
+    if req.duration_seconds < 1:
+        raise HTTPException(status_code=400, detail="Duration must be at least 1 second")
+    from datetime import datetime
+    room.timer_ends_at = datetime.utcnow() + timedelta(seconds=req.duration_seconds)
+    store.save_room(room)
+    ends_at = room.timer_ends_at.isoformat()
+    await broadcaster.broadcast(room_id, "timer_started", {"ends_at": ends_at})
+    return {"ok": True, "ends_at": ends_at}
+
+
+@router.delete("/rooms/{room_id}/timer")
+async def stop_timer(room_id: str, req: OwnerActionRequest):
+    room = _get_room_or_404(room_id)
+    owner = next((p for p in room.participants.values() if p.is_owner), None)
+    if not owner or req.token != owner.id:
+        raise HTTPException(status_code=403, detail="Only the room owner can stop the timer")
+    room.timer_ends_at = None
+    store.save_room(room)
+    await broadcaster.broadcast(room_id, "timer_stopped", {})
     return {"ok": True}
 
 

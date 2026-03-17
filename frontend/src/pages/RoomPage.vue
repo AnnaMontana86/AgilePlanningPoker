@@ -103,7 +103,7 @@
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
               <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" />
             </svg>
-            <span class="hidden sm:inline">Share</span>
+            <span class="hidden sm:inline whitespace-nowrap">Share Room</span>
           </button>
           <div
             v-if="showQR && qrDataUrl"
@@ -251,20 +251,23 @@
               v-for="p in roomStore.participants"
               :key="p.id"
               :class="[
-                'flex items-center justify-between rounded-lg border bg-white dark:bg-gray-800 px-4 py-3',
-                !roomStore.isRevealed && p.vote
-                  ? 'border-green-400 dark:border-green-500'
-                  : voteExtremes.highest.has(p.id)
-                    ? 'border-orange-400 dark:border-orange-500'
-                    : voteExtremes.lowest.has(p.id)
-                      ? 'border-blue-400 dark:border-blue-500'
-                      : 'border-gray-200 dark:border-gray-700'
+                'flex items-center justify-between rounded-lg border bg-white dark:bg-gray-800 px-4 py-3 transition-opacity',
+                p.suspended
+                  ? 'opacity-50 border-gray-200 dark:border-gray-700'
+                  : !roomStore.isRevealed && p.vote
+                    ? 'border-green-400 dark:border-green-500'
+                    : voteExtremes.highest.has(p.id)
+                      ? 'border-orange-400 dark:border-orange-500'
+                      : voteExtremes.lowest.has(p.id)
+                        ? 'border-blue-400 dark:border-blue-500'
+                        : 'border-gray-200 dark:border-gray-700'
               ]"
             >
-              <span class="font-medium flex items-center gap-1.5">
+              <span :class="['font-medium flex items-center gap-1.5', p.suspended ? 'text-gray-400 dark:text-gray-500' : '']">
                 <span v-if="p.emoji" class="text-lg leading-none">{{ p.emoji }}</span>
                 {{ p.nickname }}
                 <span v-if="p.is_owner" class="ml-1 text-xs text-indigo-500">owner</span>
+                <span v-if="p.suspended" class="ml-1 text-xs text-yellow-500 dark:text-yellow-400">suspended</span>
               </span>
               <span class="flex items-center gap-3">
                 <span :class="voteLabel(p).class">{{ voteLabel(p).text }}</span>
@@ -274,23 +277,31 @@
                   class="text-xs font-semibold text-blue-500">▼</span>
                 <button
                   v-if="isOwner && !p.is_owner"
-                  @click="kick(p.id)"
-                  class="text-xs text-red-500 hover:underline"
+                  @click="suspend(p.id)"
+                  :title="p.suspended ? 'Already suspended' : 'Suspend participant'"
+                  :disabled="p.suspended"
+                  class="text-gray-400 hover:text-yellow-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                 >
-                  kick
+                  <!-- Pause icon -->
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                    <rect x="6" y="4" width="4" height="16" rx="1"/>
+                    <rect x="14" y="4" width="4" height="16" rx="1"/>
+                  </svg>
                 </button>
               </span>
             </li>
           </ul>
           <!-- Results after reveal -->
-          <p v-if="roomStore.isRevealed && numericAverage !== null" class="mt-3 text-sm text-gray-500 text-center">
-            Average: <span class="font-bold text-gray-900 dark:text-gray-100">{{ numericAverage }}</span>
+          <p v-if="roomStore.isRevealed && (numericAverage !== null || mostPopularVote !== null)" class="mt-3 text-sm text-gray-500 text-center space-x-4">
+            <span v-if="numericAverage !== null">Average: <span class="font-bold text-gray-900 dark:text-gray-100">{{ numericAverage }}</span></span>
+            <span v-if="mostPopularVote !== null">Most popular: <span class="font-bold text-gray-900 dark:text-gray-100">{{ mostPopularVote }}</span></span>
           </p>
         </section>
 
         <!-- Card selection (centered) -->
         <section v-if="!roomStore.isRevealed" class="flex flex-col items-center gap-3">
           <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wide">Your vote</h3>
+          <p v-if="isSuspended" class="text-sm text-yellow-600 dark:text-yellow-400">You are suspended — pick a card to re-enable yourself.</p>
           <div class="flex flex-wrap justify-center gap-3">
             <button
               v-for="card in roomStore.cardSet?.cards"
@@ -358,34 +369,39 @@
                 'flex items-center gap-3 rounded-lg border px-4 py-2.5 bg-white dark:bg-gray-800 transition-colors',
                 idx === roomStore.currentTopicIndex
                   ? 'border-indigo-400 dark:border-indigo-500'
-                  : 'border-gray-200 dark:border-gray-700'
+                  : 'border-gray-200 dark:border-gray-700',
+                isOwner && idx !== roomStore.currentTopicIndex ? 'cursor-pointer hover:border-indigo-300 dark:hover:border-indigo-600' : ''
               ]"
+              @click="isOwner && idx !== roomStore.currentTopicIndex && selectTopic(topic.id)"
             >
               <span class="w-5 text-xs text-gray-400 shrink-0">{{ idx + 1 }}</span>
               <span
                 v-if="idx === roomStore.currentTopicIndex"
                 class="h-2 w-2 rounded-full bg-indigo-500 shrink-0"
               ></span>
-              <a
-                v-if="topic.link"
-                :href="topic.link"
-                target="_blank"
-                rel="noopener"
-                class="flex-1 text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:underline truncate"
-              >{{ topic.short_name }}</a>
-              <span v-else class="flex-1 text-sm font-medium truncate">{{ topic.short_name }}</span>
+              <span class="flex-1 min-w-0 truncate">
+                <a
+                  v-if="topic.link"
+                  :href="topic.link"
+                  target="_blank"
+                  rel="noopener"
+                  class="text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:underline"
+                  @click.stop
+                >{{ topic.short_name }}</a>
+                <span v-else class="text-sm font-medium">{{ topic.short_name }}</span>
+              </span>
               <!-- Estimated badge -->
               <span v-if="topic.estimates != null" class="flex items-center gap-1 shrink-0">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-green-500" viewBox="0 0 20 20" fill="currentColor">
                   <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
                 </svg>
                 <span
-                  v-for="e in topic.estimates"
-                  :key="e"
-                  class="rounded-full bg-green-100 dark:bg-green-900/40 px-1.5 py-0.5 text-xs font-medium text-green-700 dark:text-green-300"
-                >{{ e }}</span>
+                  v-for="e in compactEstimates(topic.estimates)"
+                  :key="e.label"
+                  class="rounded-full bg-green-100 dark:bg-green-900/40 px-1.5 py-0.5 text-xs font-medium"
+                ><span class="text-green-700 dark:text-green-300">{{ e.value }}</span><span v-if="e.count > 1" class="text-gray-500 dark:text-gray-400">({{ e.count }}x)</span></span>
               </span>
-              <div v-if="isOwner" class="flex items-center gap-1 shrink-0">
+              <div v-if="isOwner" class="flex items-center gap-1 shrink-0" @click.stop>
                 <button
                   @click="openEditTopic(topic)"
                   class="rounded p-1 text-gray-400 hover:text-indigo-500 transition-colors"
@@ -513,16 +529,23 @@
             </select>
           </div>
 
-          <div class="flex justify-end gap-3">
+          <div class="flex justify-between gap-3">
             <button
-              @click="timerDialog = false"
-              class="rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-            >Cancel</button>
-            <button
-              @click="startTimer"
-              :disabled="!timerInput || timerInput < 1"
-              class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >Start</button>
+              v-if="timerRemaining !== null"
+              @click="stopTimer"
+              class="rounded-lg border border-red-300 dark:border-red-700 px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+            >Delete Timer</button>
+            <div class="flex gap-3 ml-auto">
+              <button
+                @click="timerDialog = false"
+                class="rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              >Cancel</button>
+              <button
+                @click="startTimer"
+                :disabled="!timerInput || timerInput < 1"
+                class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >Start</button>
+            </div>
           </div>
         </div>
       </div>
@@ -588,12 +611,12 @@ const formattedTimer = computed(() => {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
 })
 
-function startTimer() {
-  if (!timerInput.value || timerInput.value < 1) return
-  const seconds = timerUnit.value === 'minutes' ? timerInput.value * 60 : timerInput.value
-  timerRemaining.value = seconds
-  timerDialog.value = false
+function startCountdownFrom(endsAt) {
   clearInterval(timerInterval)
+  const utcStr = endsAt.endsWith('Z') ? endsAt : endsAt + 'Z'
+  const remaining = Math.round((new Date(utcStr) - Date.now()) / 1000)
+  if (remaining <= 0) { timerRemaining.value = 0; return }
+  timerRemaining.value = remaining
   timerInterval = setInterval(() => {
     timerRemaining.value--
     if (timerRemaining.value <= 0) {
@@ -603,16 +626,46 @@ function startTimer() {
   }, 1000)
 }
 
+watch(() => roomStore.room?.timer_ends_at, (endsAt) => {
+  if (endsAt) {
+    startCountdownFrom(endsAt)
+  } else {
+    clearInterval(timerInterval)
+    timerRemaining.value = null
+  }
+})
+
+async function startTimer() {
+  if (!timerInput.value || timerInput.value < 1) return
+  const seconds = timerUnit.value === 'minutes' ? timerInput.value * 60 : timerInput.value
+  timerDialog.value = false
+  await fetch(`/api/rooms/${roomId}/timer`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token: userStore.token, duration_seconds: seconds }),
+  })
+}
+
+async function stopTimer() {
+  timerDialog.value = false
+  await fetch(`/api/rooms/${roomId}/timer`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token: userStore.token }),
+  })
+}
+
 const EMOJIS = ['🤔', '😄', '😢', '❤️', '☕', '🍺']
 const myEmoji = ref(null)
 const moodOpen = ref(false)
 const moodAnchor = ref(null)
 
 const thinkingActive = computed(() => roomStore.room?.music_playing ?? false)
-const volumeLevel = ref(0.10)
+const volumeLevel = ref(0.05)
 const showVolume = ref(false)
 let thinkingAudio = null
 let volumeHideTimer = null
+let volumeDebounceTimer = null
 
 function onMusicWrapperEnter() {
   clearTimeout(volumeHideTimer)
@@ -633,6 +686,16 @@ function startThinkingAudio() {
 
 watch(volumeLevel, v => {
   if (thinkingAudio) thinkingAudio.volume = v
+  if (isOwner.value && thinkingActive.value) {
+    clearTimeout(volumeDebounceTimer)
+    volumeDebounceTimer = setTimeout(() => {
+      apiFetch(`/api/rooms/${roomId}/music`, 'POST', { playing: true, volume: v }).catch(() => {})
+    }, 300)
+  }
+})
+
+watch(() => roomStore.room?.music_volume, (v) => {
+  if (v !== undefined && v !== volumeLevel.value) volumeLevel.value = v
 })
 
 function stopThinkingAudio() {
@@ -642,7 +705,7 @@ function stopThinkingAudio() {
 
 async function toggleThinkingMusic() {
   try {
-    await apiFetch(`/api/rooms/${roomId}/music`, 'POST', { playing: !thinkingActive.value })
+    await apiFetch(`/api/rooms/${roomId}/music`, 'POST', { playing: !thinkingActive.value, volume: volumeLevel.value })
   } catch (e) { error.value = e.message }
 }
 
@@ -765,9 +828,15 @@ const isOwner = computed(() => {
   return me?.is_owner ?? false
 })
 
-const allVoted = computed(() =>
-  roomStore.participants.length > 0 && roomStore.participants.every(p => p.vote)
-)
+const isSuspended = computed(() => {
+  const me = roomStore.room?.participants?.[userStore.participantId]
+  return me?.suspended ?? false
+})
+
+const allVoted = computed(() => {
+  const active = roomStore.participants.filter(p => !p.suspended)
+  return active.length > 0 && active.every(p => p.vote)
+})
 
 watch(allVoted, (voted) => {
   if (voted && thinkingActive.value && isOwner.value) {
@@ -799,10 +868,28 @@ const numericAverage = computed(() => {
   return (nums.reduce((a, b) => a + b, 0) / nums.length).toFixed(1)
 })
 
+const mostPopularVote = computed(() => {
+  if (!roomStore.isRevealed) return null
+  const votes = roomStore.participants.map(p => p.vote).filter(v => v != null)
+  if (!votes.length) return null
+  const counts = {}
+  for (const v of votes) counts[v] = (counts[v] ?? 0) + 1
+  const max = Math.max(...Object.values(counts))
+  if (max < 2) return null  // no card voted more than once
+  const winners = Object.keys(counts).filter(v => counts[v] === max)
+  return winners.join(' / ')
+})
+
+function compactEstimates(estimates) {
+  const counts = {}
+  for (const e of estimates) counts[e] = (counts[e] ?? 0) + 1
+  return Object.entries(counts).map(([value, count]) => ({ value, count, label: value }))
+}
+
 function voteLabel(participant) {
   if (!roomStore.isRevealed) {
     if (participant.vote) return { text: '✓', class: 'text-green-500 font-bold text-[22px]' }
-    return { text: '…', class: 'text-gray-400' }
+    return { text: '', class: '' }
   }
   return { text: participant.vote ?? '–', class: 'font-bold' }
 }
@@ -880,6 +967,12 @@ async function deleteTopic(topicId) {
   } catch (e) { error.value = e.message }
 }
 
+async function selectTopic(topicId) {
+  try {
+    await apiFetch(`/api/rooms/${roomId}/topics/${topicId}/select`)
+  } catch (e) { error.value = e.message }
+}
+
 const editingTopic = ref(null)
 const editTopicName = ref('')
 const editTopicLink = ref('')
@@ -904,6 +997,12 @@ async function saveEditTopic() {
 async function kick(participantId) {
   try {
     await apiFetch(`/api/rooms/${roomId}/participants/${participantId}`, 'DELETE')
+  } catch (e) { error.value = e.message }
+}
+
+async function suspend(participantId) {
+  try {
+    await apiFetch(`/api/rooms/${roomId}/participants/${participantId}/suspend`, 'POST')
   } catch (e) { error.value = e.message }
 }
 
@@ -952,8 +1051,10 @@ onMounted(async () => {
     roomStore.setRoom(data)
     const alreadyIn = userStore.participantId && data.participants?.[userStore.participantId]
     if (alreadyIn) {
+      if (data.music_volume !== undefined) volumeLevel.value = data.music_volume
       roomStore.connectSSE(roomId)
       if (data.music_playing) startThinkingAudio()
+      if (data.timer_ends_at) startCountdownFrom(data.timer_ends_at)
     } else {
       joining.value = true
     }
@@ -967,6 +1068,7 @@ onBeforeUnmount(() => {
   cancelAnimationFrame(fireworksRaf)
   clearTimeout(copyToastTimer)
   clearTimeout(volumeHideTimer)
+  clearTimeout(volumeDebounceTimer)
   clearTimeout(qrHideTimer)
   document.removeEventListener('click', onClickOutsideMood, true)
   stopThinkingAudio()

@@ -104,7 +104,7 @@ describe('Thinking time button', () => {
     expect(btn.attributes('disabled')).toBeUndefined()
   })
 
-  it('sets audio volume to 0.05 when music starts', async () => {
+  it('sets audio volume to 0.05 (default) when music starts', async () => {
     let audioInstance = null
     vi.stubGlobal('Audio', class {
       constructor() {
@@ -120,7 +120,7 @@ describe('Thinking time button', () => {
     await mountWithRoom(room)
 
     expect(audioInstance).not.toBeNull()
-    expect(audioInstance.volume).toBe(0.10)
+    expect(audioInstance.volume).toBe(0.05)
   })
 
   it('shows volume slider on mouseenter when music is playing', async () => {
