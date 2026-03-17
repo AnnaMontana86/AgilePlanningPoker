@@ -103,7 +103,7 @@
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
               <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" />
             </svg>
-            <span class="hidden sm:inline">Share Room</span>
+            <span class="hidden sm:inline whitespace-nowrap">Share Room</span>
           </button>
           <div
             v-if="showQR && qrDataUrl"
@@ -263,7 +263,7 @@
                         : 'border-gray-200 dark:border-gray-700'
               ]"
             >
-              <span class="font-medium flex items-center gap-1.5">
+              <span :class="['font-medium flex items-center gap-1.5', p.suspended ? 'text-gray-400 dark:text-gray-500' : '']">
                 <span v-if="p.emoji" class="text-lg leading-none">{{ p.emoji }}</span>
                 {{ p.nickname }}
                 <span v-if="p.is_owner" class="ml-1 text-xs text-indigo-500">owner</span>
@@ -292,8 +292,9 @@
             </li>
           </ul>
           <!-- Results after reveal -->
-          <p v-if="roomStore.isRevealed && numericAverage !== null" class="mt-3 text-sm text-gray-500 text-center">
-            Average: <span class="font-bold text-gray-900 dark:text-gray-100">{{ numericAverage }}</span>
+          <p v-if="roomStore.isRevealed && (numericAverage !== null || mostPopularVote !== null)" class="mt-3 text-sm text-gray-500 text-center space-x-4">
+            <span v-if="numericAverage !== null">Average: <span class="font-bold text-gray-900 dark:text-gray-100">{{ numericAverage }}</span></span>
+            <span v-if="mostPopularVote !== null">Most popular: <span class="font-bold text-gray-900 dark:text-gray-100">{{ mostPopularVote }}</span></span>
           </p>
         </section>
 
@@ -378,25 +379,27 @@
                 v-if="idx === roomStore.currentTopicIndex"
                 class="h-2 w-2 rounded-full bg-indigo-500 shrink-0"
               ></span>
-              <a
-                v-if="topic.link"
-                :href="topic.link"
-                target="_blank"
-                rel="noopener"
-                class="flex-1 text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:underline truncate"
-                @click.stop
-              >{{ topic.short_name }}</a>
-              <span v-else class="flex-1 text-sm font-medium truncate">{{ topic.short_name }}</span>
+              <span class="flex-1 min-w-0 truncate">
+                <a
+                  v-if="topic.link"
+                  :href="topic.link"
+                  target="_blank"
+                  rel="noopener"
+                  class="text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:underline"
+                  @click.stop
+                >{{ topic.short_name }}</a>
+                <span v-else class="text-sm font-medium">{{ topic.short_name }}</span>
+              </span>
               <!-- Estimated badge -->
               <span v-if="topic.estimates != null" class="flex items-center gap-1 shrink-0">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-green-500" viewBox="0 0 20 20" fill="currentColor">
                   <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
                 </svg>
                 <span
-                  v-for="e in topic.estimates"
-                  :key="e"
-                  class="rounded-full bg-green-100 dark:bg-green-900/40 px-1.5 py-0.5 text-xs font-medium text-green-700 dark:text-green-300"
-                >{{ e }}</span>
+                  v-for="e in compactEstimates(topic.estimates)"
+                  :key="e.label"
+                  class="rounded-full bg-green-100 dark:bg-green-900/40 px-1.5 py-0.5 text-xs font-medium"
+                ><span class="text-green-700 dark:text-green-300">{{ e.value }}</span><span v-if="e.count > 1" class="text-gray-500 dark:text-gray-400">({{ e.count }}x)</span></span>
               </span>
               <div v-if="isOwner" class="flex items-center gap-1 shrink-0" @click.stop>
                 <button
@@ -531,7 +534,7 @@
               v-if="timerRemaining !== null"
               @click="stopTimer"
               class="rounded-lg border border-red-300 dark:border-red-700 px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-            >Stop Timer</button>
+            >Delete Timer</button>
             <div class="flex gap-3 ml-auto">
               <button
                 @click="timerDialog = false"
@@ -610,7 +613,8 @@ const formattedTimer = computed(() => {
 
 function startCountdownFrom(endsAt) {
   clearInterval(timerInterval)
-  const remaining = Math.round((new Date(endsAt) - Date.now()) / 1000)
+  const utcStr = endsAt.endsWith('Z') ? endsAt : endsAt + 'Z'
+  const remaining = Math.round((new Date(utcStr) - Date.now()) / 1000)
   if (remaining <= 0) { timerRemaining.value = 0; return }
   timerRemaining.value = remaining
   timerInterval = setInterval(() => {
@@ -864,10 +868,28 @@ const numericAverage = computed(() => {
   return (nums.reduce((a, b) => a + b, 0) / nums.length).toFixed(1)
 })
 
+const mostPopularVote = computed(() => {
+  if (!roomStore.isRevealed) return null
+  const votes = roomStore.participants.map(p => p.vote).filter(v => v != null)
+  if (!votes.length) return null
+  const counts = {}
+  for (const v of votes) counts[v] = (counts[v] ?? 0) + 1
+  const max = Math.max(...Object.values(counts))
+  if (max < 2) return null  // no card voted more than once
+  const winners = Object.keys(counts).filter(v => counts[v] === max)
+  return winners.join(' / ')
+})
+
+function compactEstimates(estimates) {
+  const counts = {}
+  for (const e of estimates) counts[e] = (counts[e] ?? 0) + 1
+  return Object.entries(counts).map(([value, count]) => ({ value, count, label: value }))
+}
+
 function voteLabel(participant) {
   if (!roomStore.isRevealed) {
     if (participant.vote) return { text: '✓', class: 'text-green-500 font-bold text-[22px]' }
-    return { text: '…', class: 'text-gray-400' }
+    return { text: '', class: '' }
   }
   return { text: participant.vote ?? '–', class: 'font-bold' }
 }
