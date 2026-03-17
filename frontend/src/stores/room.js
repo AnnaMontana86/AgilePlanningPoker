@@ -74,6 +74,8 @@ export const useRoomStore = defineStore('room', () => {
       room.value.current_topic_index = data.current_topic_index
     } else if (type === 'timer_started') {
       room.value.timer_ends_at = data.ends_at
+    } else if (type === 'timer_stopped') {
+      room.value.timer_ends_at = null
     }
   }
 

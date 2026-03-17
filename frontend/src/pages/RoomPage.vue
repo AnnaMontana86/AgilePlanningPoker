@@ -516,16 +516,23 @@
             </select>
           </div>
 
-          <div class="flex justify-end gap-3">
+          <div class="flex justify-between gap-3">
             <button
-              @click="timerDialog = false"
-              class="rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-            >Cancel</button>
-            <button
-              @click="startTimer"
-              :disabled="!timerInput || timerInput < 1"
-              class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >Start</button>
+              v-if="timerRemaining !== null"
+              @click="stopTimer"
+              class="rounded-lg border border-red-300 dark:border-red-700 px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+            >Stop Timer</button>
+            <div class="flex gap-3 ml-auto">
+              <button
+                @click="timerDialog = false"
+                class="rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+              >Cancel</button>
+              <button
+                @click="startTimer"
+                :disabled="!timerInput || timerInput < 1"
+                class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >Start</button>
+            </div>
           </div>
         </div>
       </div>
@@ -606,7 +613,12 @@ function startCountdownFrom(endsAt) {
 }
 
 watch(() => roomStore.room?.timer_ends_at, (endsAt) => {
-  if (endsAt) startCountdownFrom(endsAt)
+  if (endsAt) {
+    startCountdownFrom(endsAt)
+  } else {
+    clearInterval(timerInterval)
+    timerRemaining.value = null
+  }
 })
 
 async function startTimer() {
@@ -617,6 +629,15 @@ async function startTimer() {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ token: userStore.token, duration_seconds: seconds }),
+  })
+}
+
+async function stopTimer() {
+  timerDialog.value = false
+  await fetch(`/api/rooms/${roomId}/timer`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token: userStore.token }),
   })
 }
 

@@ -384,6 +384,18 @@ async def start_timer(room_id: str, req: TimerRequest):
     return {"ok": True, "ends_at": ends_at}
 
 
+@router.delete("/rooms/{room_id}/timer")
+async def stop_timer(room_id: str, req: OwnerActionRequest):
+    room = _get_room_or_404(room_id)
+    owner = next((p for p in room.participants.values() if p.is_owner), None)
+    if not owner or req.token != owner.id:
+        raise HTTPException(status_code=403, detail="Only the room owner can stop the timer")
+    room.timer_ends_at = None
+    store.save_room(room)
+    await broadcaster.broadcast(room_id, "timer_stopped", {})
+    return {"ok": True}
+
+
 @router.post("/rooms/{room_id}/leave")
 async def leave_room(room_id: str, req: LeaveRequest):
     room = _get_room_or_404(room_id)
