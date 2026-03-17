@@ -358,8 +358,10 @@
                 'flex items-center gap-3 rounded-lg border px-4 py-2.5 bg-white dark:bg-gray-800 transition-colors',
                 idx === roomStore.currentTopicIndex
                   ? 'border-indigo-400 dark:border-indigo-500'
-                  : 'border-gray-200 dark:border-gray-700'
+                  : 'border-gray-200 dark:border-gray-700',
+                isOwner && idx !== roomStore.currentTopicIndex ? 'cursor-pointer hover:border-indigo-300 dark:hover:border-indigo-600' : ''
               ]"
+              @click="isOwner && idx !== roomStore.currentTopicIndex && selectTopic(topic.id)"
             >
               <span class="w-5 text-xs text-gray-400 shrink-0">{{ idx + 1 }}</span>
               <span
@@ -372,6 +374,7 @@
                 target="_blank"
                 rel="noopener"
                 class="flex-1 text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:underline truncate"
+                @click.stop
               >{{ topic.short_name }}</a>
               <span v-else class="flex-1 text-sm font-medium truncate">{{ topic.short_name }}</span>
               <!-- Estimated badge -->
@@ -385,7 +388,7 @@
                   class="rounded-full bg-green-100 dark:bg-green-900/40 px-1.5 py-0.5 text-xs font-medium text-green-700 dark:text-green-300"
                 >{{ e }}</span>
               </span>
-              <div v-if="isOwner" class="flex items-center gap-1 shrink-0">
+              <div v-if="isOwner" class="flex items-center gap-1 shrink-0" @click.stop>
                 <button
                   @click="openEditTopic(topic)"
                   class="rounded p-1 text-gray-400 hover:text-indigo-500 transition-colors"
@@ -877,6 +880,12 @@ async function moveTopic(idx, dir) {
 async function deleteTopic(topicId) {
   try {
     await apiFetch(`/api/rooms/${roomId}/topics/${topicId}`, 'DELETE')
+  } catch (e) { error.value = e.message }
+}
+
+async function selectTopic(topicId) {
+  try {
+    await apiFetch(`/api/rooms/${roomId}/topics/${topicId}/select`)
   } catch (e) { error.value = e.message }
 }
 

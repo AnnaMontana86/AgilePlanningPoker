@@ -70,6 +70,8 @@ export const useRoomStore = defineStore('room', () => {
     } else if (type === 'topic_removed') {
       room.value.topics = room.value.topics.filter(t => t.id !== data.topic_id)
       room.value.current_topic_index = data.current_topic_index
+    } else if (type === 'topic_selected') {
+      room.value.current_topic_index = data.current_topic_index
     }
   }
 

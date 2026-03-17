@@ -71,6 +71,10 @@ class EditTopicRequest(BaseModel):
     link: str = ""
 
 
+class SelectTopicRequest(BaseModel):
+    token: str
+
+
 ALLOWED_EMOJIS = {"🤔", "😄", "😢", "❤️", "☕", "🍺"}
 
 
@@ -268,6 +272,21 @@ async def edit_topic(room_id: str, topic_id: str, req: EditTopicRequest):
     store.save_room(room)
     await broadcaster.broadcast(room_id, "topic_updated", {"topic": topic.model_dump()})
     return {"topic": topic.model_dump()}
+
+
+@router.post("/rooms/{room_id}/topics/{topic_id}/select")
+async def select_topic(room_id: str, topic_id: str, req: SelectTopicRequest):
+    room = _get_room_or_404(room_id)
+    owner = next((p for p in room.participants.values() if p.is_owner), None)
+    if not owner or req.token != owner.id:
+        raise HTTPException(status_code=403, detail="Only the room owner can select topics")
+    idx = next((i for i, t in enumerate(room.topics) if t.id == topic_id), None)
+    if idx is None:
+        raise HTTPException(status_code=404, detail="Topic not found")
+    room.current_topic_index = idx
+    store.save_room(room)
+    await broadcaster.broadcast(room_id, "topic_selected", {"current_topic_index": idx})
+    return {"ok": True, "current_topic_index": idx}
 
 
 @router.delete("/rooms/{room_id}/topics/{topic_id}")
