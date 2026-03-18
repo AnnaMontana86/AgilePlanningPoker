@@ -4,6 +4,7 @@ import { ref, computed } from 'vue'
 export const useRoomStore = defineStore('room', () => {
   const room = ref(null)
   const eventSource = ref(null)
+  const votesResetCount = ref(0)
 
   const participants = computed(() =>
     room.value ? Object.values(room.value.participants) : []
@@ -73,6 +74,11 @@ export const useRoomStore = defineStore('room', () => {
       room.value.current_topic_index = data.current_topic_index
     } else if (type === 'topic_selected') {
       room.value.current_topic_index = data.current_topic_index
+    } else if (type === 'votes_reset') {
+      room.value.participants = Object.fromEntries(
+        Object.entries(room.value.participants).map(([id, p]) => [id, { ...p, vote: null }])
+      )
+      votesResetCount.value++
     } else if (type === 'participant_suspended') {
       const p = room.value.participants[data.participant_id]
       if (p) { p.suspended = true; p.vote = null }
@@ -113,5 +119,6 @@ export const useRoomStore = defineStore('room', () => {
     room, participants, currentRound, isRevealed, cardSet,
     topics, currentTopicIndex, currentTopic,
     setRoom, applyEvent, connectSSE, disconnectSSE, clear,
+    votesResetCount,
   }
 })

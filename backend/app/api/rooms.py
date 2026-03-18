@@ -277,8 +277,15 @@ async def edit_topic(room_id: str, topic_id: str, req: EditTopicRequest):
         raise HTTPException(status_code=409, detail="A topic with this short name already exists in the room")
     topic.short_name = req.short_name
     topic.link = req.link
+    topic.estimates = None
+    votes_reset = not room.current_round.revealed
+    if votes_reset:
+        for p in room.participants.values():
+            p.vote = None
     store.save_room(room)
     await broadcaster.broadcast(room_id, "topic_updated", {"topic": topic.model_dump()})
+    if votes_reset:
+        await broadcaster.broadcast(room_id, "votes_reset", {})
     return {"topic": topic.model_dump()}
 
 
@@ -292,8 +299,14 @@ async def select_topic(room_id: str, topic_id: str, req: SelectTopicRequest):
     if idx is None:
         raise HTTPException(status_code=404, detail="Topic not found")
     room.current_topic_index = idx
+    votes_reset = not room.current_round.revealed
+    if votes_reset:
+        for p in room.participants.values():
+            p.vote = None
     store.save_room(room)
     await broadcaster.broadcast(room_id, "topic_selected", {"current_topic_index": idx})
+    if votes_reset:
+        await broadcaster.broadcast(room_id, "votes_reset", {})
     return {"ok": True, "current_topic_index": idx}
 
 

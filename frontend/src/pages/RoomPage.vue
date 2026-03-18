@@ -156,7 +156,8 @@
       </header>
 
       <!-- Page body -->
-      <main class="flex-1 max-w-4xl w-full mx-auto px-4 py-8 space-y-8">
+      <main class="flex-1 flex flex-col">
+      <div class="max-w-4xl w-full mx-auto px-4 pt-8 space-y-8">
 
         <!-- Round headline + current topic -->
         <div class="text-center space-y-1">
@@ -252,15 +253,7 @@
               :key="p.id"
               :class="[
                 'flex items-center justify-between rounded-lg border bg-white dark:bg-gray-800 px-4 py-3 transition-opacity',
-                p.suspended
-                  ? 'opacity-50 border-gray-200 dark:border-gray-700'
-                  : !roomStore.isRevealed && p.vote
-                    ? 'border-green-400 dark:border-green-500'
-                    : voteExtremes.highest.has(p.id)
-                      ? 'border-orange-400 dark:border-orange-500'
-                      : voteExtremes.lowest.has(p.id)
-                        ? 'border-blue-400 dark:border-blue-500'
-                        : 'border-gray-200 dark:border-gray-700'
+                participantBorderClass(p),
               ]"
             >
               <span :class="['font-medium flex items-center gap-1.5', p.suspended ? 'text-gray-400 dark:text-gray-500' : '']">
@@ -298,8 +291,10 @@
           </p>
         </section>
 
-        <!-- Card selection (centered) -->
-        <section v-if="!roomStore.isRevealed" class="flex flex-col items-center gap-3">
+      </div>
+
+      <!-- Card selection — full browser width on desktop -->
+      <section v-if="!roomStore.isRevealed" class="w-full flex flex-col items-center gap-3 px-4 py-8 sm:py-6">
           <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wide">Your vote</h3>
           <p v-if="isSuspended" class="text-sm text-yellow-600 dark:text-yellow-400">You are suspended — pick a card to re-enable yourself.</p>
           <div class="flex flex-wrap justify-center gap-3">
@@ -319,6 +314,7 @@
           </div>
         </section>
 
+      <div class="max-w-4xl w-full mx-auto px-4 pb-8 space-y-8">
         <!-- Topics -->
         <section v-if="roomStore.topics.length > 0 || isOwner">
           <div class="flex items-center justify-between mb-3">
@@ -365,13 +361,7 @@
             <li
               v-for="(topic, idx) in roomStore.topics"
               :key="topic.id"
-              :class="[
-                'flex items-center gap-3 rounded-lg border px-4 py-2.5 bg-white dark:bg-gray-800 transition-colors',
-                idx === roomStore.currentTopicIndex
-                  ? 'border-indigo-400 dark:border-indigo-500'
-                  : 'border-gray-200 dark:border-gray-700',
-                isOwner && idx !== roomStore.currentTopicIndex ? 'cursor-pointer hover:border-indigo-300 dark:hover:border-indigo-600' : ''
-              ]"
+              :class="topicItemClass(topic, idx)"
               @click="isOwner && idx !== roomStore.currentTopicIndex && selectTopic(topic.id)"
             >
               <span class="w-5 text-xs text-gray-400 shrink-0">{{ idx + 1 }}</span>
@@ -438,6 +428,7 @@
         </section>
 
         <p v-if="error" class="text-red-500 text-sm text-center">{{ error }}</p>
+      </div>
       </main>
 
       <!-- Edit topic dialog -->
@@ -554,12 +545,18 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, onUnmounted, onBeforeUnmount, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useRoomStore } from '../stores/room'
 import { useUserStore } from '../stores/user'
 import { useThemeStore } from '../stores/theme'
-import QRCode from 'qrcode'
+
+import { useTimer } from '../composables/useTimer'
+import { useThinkingMusic } from '../composables/useThinkingMusic'
+import { useTopics } from '../composables/useTopics'
+import { useVoteAnalysis } from '../composables/useVoteAnalysis'
+import { useShare } from '../composables/useShare'
+import { useFireworks } from '../composables/useFireworks'
 
 const route = useRoute()
 const router = useRouter()
@@ -597,123 +594,58 @@ async function joinRoom() {
   }
 }
 
-// Timer
-const timerDialog = ref(false)
-const timerInput = ref(null)
-const timerUnit = ref('minutes')
-const timerRemaining = ref(null)
-let timerInterval = null
+async function apiFetch(path, method = 'POST', body = {}) {
+  const res = await fetch(path, {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token: userStore.token, ...body }),
+  })
+  if (!res.ok) throw new Error((await res.json()).detail ?? res.statusText)
+  return res.json()
+}
 
-const formattedTimer = computed(() => {
-  if (timerRemaining.value === null) return ''
-  const m = Math.floor(timerRemaining.value / 60)
-  const s = timerRemaining.value % 60
-  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+// Derived participant state
+const isOwner = computed(() => {
+  const me = roomStore.room?.participants?.[userStore.participantId]
+  return me?.is_owner ?? false
 })
 
-function startCountdownFrom(endsAt) {
-  clearInterval(timerInterval)
-  const utcStr = endsAt.endsWith('Z') ? endsAt : endsAt + 'Z'
-  const remaining = Math.round((new Date(utcStr) - Date.now()) / 1000)
-  if (remaining <= 0) { timerRemaining.value = 0; return }
-  timerRemaining.value = remaining
-  timerInterval = setInterval(() => {
-    timerRemaining.value--
-    if (timerRemaining.value <= 0) {
-      timerRemaining.value = 0
-      clearInterval(timerInterval)
-    }
-  }, 1000)
-}
-
-watch(() => roomStore.room?.timer_ends_at, (endsAt) => {
-  if (endsAt) {
-    startCountdownFrom(endsAt)
-  } else {
-    clearInterval(timerInterval)
-    timerRemaining.value = null
-  }
+const isSuspended = computed(() => {
+  const me = roomStore.room?.participants?.[userStore.participantId]
+  return me?.suspended ?? false
 })
 
-async function startTimer() {
-  if (!timerInput.value || timerInput.value < 1) return
-  const seconds = timerUnit.value === 'minutes' ? timerInput.value * 60 : timerInput.value
-  timerDialog.value = false
-  await fetch(`/api/rooms/${roomId}/timer`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ token: userStore.token, duration_seconds: seconds }),
-  })
-}
+const allVoted = computed(() => {
+  const active = roomStore.participants.filter(p => !p.suspended)
+  return active.length > 0 && active.every(p => p.vote)
+})
 
-async function stopTimer() {
-  timerDialog.value = false
-  await fetch(`/api/rooms/${roomId}/timer`, {
-    method: 'DELETE',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ token: userStore.token }),
-  })
-}
+// Composables
+const { timerDialog, timerInput, timerUnit, timerRemaining, formattedTimer, startCountdownFrom, startTimer, stopTimer } =
+  useTimer(roomId, roomStore, userStore)
 
+const { voteExtremes, numericAverage, mostPopularVote, compactEstimates } =
+  useVoteAnalysis(roomStore)
+
+const { showAddTopic, newTopicName, newTopicLink, editingTopic, editTopicName, editTopicLink,
+        addTopic, moveTopic, deleteTopic, selectTopic, openEditTopic, saveEditTopic } =
+  useTopics(roomId, roomStore, apiFetch, error)
+
+const { copyToast, showQR, qrDataUrl, onShareEnter, onShareLeave, copyInviteLink } =
+  useShare()
+
+const { thinkingActive, volumeLevel, showVolume, onMusicWrapperEnter, onMusicWrapperLeave,
+        toggleThinkingMusic, startThinkingAudio, stopThinkingAudio } =
+  useThinkingMusic(roomId, roomStore, userStore, isOwner, allVoted)
+
+const { fireworksCanvas, fireworksActive } =
+  useFireworks(roomStore)
+
+// Emoji / mood
 const EMOJIS = ['🤔', '😄', '😢', '❤️', '☕', '🍺']
 const myEmoji = ref(null)
 const moodOpen = ref(false)
 const moodAnchor = ref(null)
-
-const thinkingActive = computed(() => roomStore.room?.music_playing ?? false)
-const volumeLevel = ref(0.05)
-const showVolume = ref(false)
-let thinkingAudio = null
-let volumeHideTimer = null
-let volumeDebounceTimer = null
-
-function onMusicWrapperEnter() {
-  clearTimeout(volumeHideTimer)
-  showVolume.value = true
-}
-
-function onMusicWrapperLeave() {
-  volumeHideTimer = setTimeout(() => { showVolume.value = false }, 400)
-}
-
-function startThinkingAudio() {
-  if (thinkingAudio) return
-  thinkingAudio = new Audio('/sounds/thinking-time.mp3')
-  thinkingAudio.loop = true
-  thinkingAudio.volume = volumeLevel.value
-  thinkingAudio.play()
-}
-
-watch(volumeLevel, v => {
-  if (thinkingAudio) thinkingAudio.volume = v
-  if (isOwner.value && thinkingActive.value) {
-    clearTimeout(volumeDebounceTimer)
-    volumeDebounceTimer = setTimeout(() => {
-      apiFetch(`/api/rooms/${roomId}/music`, 'POST', { playing: true, volume: v }).catch(() => {})
-    }, 300)
-  }
-})
-
-watch(() => roomStore.room?.music_volume, (v) => {
-  if (v !== undefined && v !== volumeLevel.value) volumeLevel.value = v
-})
-
-function stopThinkingAudio() {
-  thinkingAudio?.pause()
-  thinkingAudio = null
-}
-
-async function toggleThinkingMusic() {
-  try {
-    await apiFetch(`/api/rooms/${roomId}/music`, 'POST', { playing: !thinkingActive.value, volume: volumeLevel.value })
-  } catch (e) { error.value = e.message }
-}
-
-watch(thinkingActive, (playing) => {
-  if (playing) startThinkingAudio()
-  else stopThinkingAudio()
-})
-
 
 function onClickOutsideMood(e) {
   if (moodAnchor.value && !moodAnchor.value.contains(e.target)) {
@@ -730,179 +662,16 @@ async function setEmoji(emoji) {
       emoji: next,
     })
   } catch (e) {
-    myEmoji.value = myEmoji.value === null ? emoji : null // revert
+    myEmoji.value = myEmoji.value === null ? emoji : null
     error.value = e.message
   }
 }
 
+// Voting
 const myVote = ref(null)
 
-// Reset local vote when a new round starts
 watch(() => roomStore.currentRound?.number, () => { myVote.value = null })
-
-// Fireworks
-const fireworksCanvas = ref(null)
-const fireworksActive = ref(false)
-let fireworksRaf = null
-
-const allSameVote = computed(() => {
-  if (!roomStore.isRevealed) return false
-  const votes = roomStore.participants.map(p => p.vote).filter(v => v != null)
-  return votes.length >= 2 && votes.every(v => v === votes[0])
-})
-
-watch(allSameVote, (same) => {
-  if (same) nextTick(launchFireworks)
-})
-
-function launchFireworks() {
-  fireworksActive.value = true
-  const canvas = fireworksCanvas.value
-  canvas.width = window.innerWidth
-  canvas.height = window.innerHeight
-  const ctx = canvas.getContext('2d')
-  const particles = []
-  const COLORS = ['#ff4444','#ff8800','#ffdd00','#44ff44','#44aaff','#aa44ff','#ff44aa','#ffffff']
-  const DURATION = 4000
-  const start = performance.now()
-
-  function spawnBurst() {
-    const x = 0.2 * canvas.width + Math.random() * 0.6 * canvas.width
-    const y = 0.1 * canvas.height + Math.random() * 0.45 * canvas.height
-    const color = COLORS[Math.floor(Math.random() * COLORS.length)]
-    const count = 80 + Math.floor(Math.random() * 40)
-    for (let i = 0; i < count; i++) {
-      const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.3
-      const speed = 2 + Math.random() * 5
-      particles.push({
-        x, y,
-        vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed,
-        alpha: 1,
-        color,
-        radius: 2 + Math.random() * 2,
-      })
-    }
-  }
-
-  let lastBurst = 0
-  function frame(now) {
-    const elapsed = now - start
-    if (elapsed > DURATION) {
-      ctx.clearRect(0, 0, canvas.width, canvas.height)
-      fireworksActive.value = false
-      return
-    }
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height)
-
-    if (now - lastBurst > 600) {
-      spawnBurst()
-      lastBurst = now
-    }
-
-    for (let i = particles.length - 1; i >= 0; i--) {
-      const p = particles[i]
-      p.x += p.vx
-      p.y += p.vy
-      p.vy += 0.08  // gravity
-      p.vx *= 0.98  // drag
-      p.alpha -= 0.013
-      if (p.alpha <= 0) { particles.splice(i, 1); continue }
-      ctx.globalAlpha = p.alpha
-      ctx.fillStyle = p.color
-      ctx.beginPath()
-      ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2)
-      ctx.fill()
-    }
-    ctx.globalAlpha = 1
-    fireworksRaf = requestAnimationFrame(frame)
-  }
-
-  spawnBurst()
-  fireworksRaf = requestAnimationFrame(frame)
-}
-
-const isOwner = computed(() => {
-  const me = roomStore.room?.participants?.[userStore.participantId]
-  return me?.is_owner ?? false
-})
-
-const isSuspended = computed(() => {
-  const me = roomStore.room?.participants?.[userStore.participantId]
-  return me?.suspended ?? false
-})
-
-const allVoted = computed(() => {
-  const active = roomStore.participants.filter(p => !p.suspended)
-  return active.length > 0 && active.every(p => p.vote)
-})
-
-watch(allVoted, (voted) => {
-  if (voted && thinkingActive.value && isOwner.value) {
-    apiFetch(`/api/rooms/${roomId}/music`, 'POST', { playing: false }).catch(() => {})
-  }
-})
-
-const voteExtremes = computed(() => {
-  if (!roomStore.isRevealed) return { highest: new Set(), lowest: new Set() }
-  const numeric = roomStore.participants
-    .map(p => ({ id: p.id, n: parseFloat(p.vote) }))
-    .filter(p => !isNaN(p.n))
-  if (numeric.length < 2) return { highest: new Set(), lowest: new Set() }
-  const max = Math.max(...numeric.map(p => p.n))
-  const min = Math.min(...numeric.map(p => p.n))
-  if (max === min) return { highest: new Set(), lowest: new Set() }
-  return {
-    highest: new Set(numeric.filter(p => p.n === max).map(p => p.id)),
-    lowest:  new Set(numeric.filter(p => p.n === min).map(p => p.id)),
-  }
-})
-
-const numericAverage = computed(() => {
-  if (!roomStore.isRevealed) return null
-  const nums = roomStore.participants
-    .map(p => parseFloat(p.vote))
-    .filter(n => !isNaN(n))
-  if (!nums.length) return null
-  return (nums.reduce((a, b) => a + b, 0) / nums.length).toFixed(1)
-})
-
-const mostPopularVote = computed(() => {
-  if (!roomStore.isRevealed) return null
-  const votes = roomStore.participants.map(p => p.vote).filter(v => v != null)
-  if (!votes.length) return null
-  const counts = {}
-  for (const v of votes) counts[v] = (counts[v] ?? 0) + 1
-  const max = Math.max(...Object.values(counts))
-  if (max < 2) return null  // no card voted more than once
-  const winners = Object.keys(counts).filter(v => counts[v] === max)
-  return winners.join(' / ')
-})
-
-function compactEstimates(estimates) {
-  const counts = {}
-  for (const e of estimates) counts[e] = (counts[e] ?? 0) + 1
-  return Object.entries(counts).map(([value, count]) => ({ value, count, label: value }))
-}
-
-function voteLabel(participant) {
-  if (!roomStore.isRevealed) {
-    if (participant.vote) return { text: '✓', class: 'text-green-500 font-bold text-[22px]' }
-    return { text: '', class: '' }
-  }
-  return { text: participant.vote ?? '–', class: 'font-bold' }
-}
-
-async function apiFetch(path, method = 'POST', body = {}) {
-  const res = await fetch(path, {
-    method,
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ token: userStore.token, ...body }),
-  })
-  if (!res.ok) throw new Error((await res.json()).detail ?? res.statusText)
-  return res.json()
-}
+watch(() => roomStore.votesResetCount, () => { myVote.value = null })
 
 async function vote(card) {
   error.value = ''
@@ -914,7 +683,7 @@ async function vote(card) {
       card: newCard,
     })
   } catch (e) {
-    myVote.value = newCard === null ? card : null // revert on error
+    myVote.value = newCard === null ? card : null
     error.value = e.message
   }
 }
@@ -931,69 +700,7 @@ async function retry() {
   try { await apiFetch(`/api/rooms/${roomId}/retry`) } catch (e) { error.value = e.message }
 }
 
-// Topics
-const showAddTopic = ref(false)
-const newTopicName = ref('')
-const newTopicLink = ref('')
-
-async function addTopic() {
-  if (!newTopicName.value.trim()) return
-  try {
-    await apiFetch(`/api/rooms/${roomId}/topics`, 'POST', {
-      short_name: newTopicName.value.trim(),
-      link: newTopicLink.value.trim(),
-    })
-    newTopicName.value = ''
-    newTopicLink.value = ''
-    showAddTopic.value = false
-  } catch (e) { error.value = e.message }
-}
-
-async function moveTopic(idx, dir) {
-  const topics = [...roomStore.topics]
-  const newIdx = idx + dir
-  if (newIdx < 0 || newIdx >= topics.length) return
-  ;[topics[idx], topics[newIdx]] = [topics[newIdx], topics[idx]]
-  try {
-    await apiFetch(`/api/rooms/${roomId}/topics`, 'PUT', {
-      topic_ids: topics.map(t => t.id),
-    })
-  } catch (e) { error.value = e.message }
-}
-
-async function deleteTopic(topicId) {
-  try {
-    await apiFetch(`/api/rooms/${roomId}/topics/${topicId}`, 'DELETE')
-  } catch (e) { error.value = e.message }
-}
-
-async function selectTopic(topicId) {
-  try {
-    await apiFetch(`/api/rooms/${roomId}/topics/${topicId}/select`)
-  } catch (e) { error.value = e.message }
-}
-
-const editingTopic = ref(null)
-const editTopicName = ref('')
-const editTopicLink = ref('')
-
-function openEditTopic(topic) {
-  editingTopic.value = topic
-  editTopicName.value = topic.short_name
-  editTopicLink.value = topic.link
-}
-
-async function saveEditTopic() {
-  if (!editTopicName.value.trim() || !editingTopic.value) return
-  try {
-    await apiFetch(`/api/rooms/${roomId}/topics/${editingTopic.value.id}`, 'PATCH', {
-      short_name: editTopicName.value.trim(),
-      link: editTopicLink.value.trim(),
-    })
-    editingTopic.value = null
-  } catch (e) { error.value = e.message }
-}
-
+// Participant management
 async function kick(participantId) {
   try {
     await apiFetch(`/api/rooms/${roomId}/participants/${participantId}`, 'DELETE')
@@ -1018,28 +725,33 @@ async function leaveRoom() {
   }
 }
 
-const copyToast = ref(false)
-let copyToastTimer = null
-
-const showQR = ref(false)
-const qrDataUrl = ref('')
-let qrHideTimer = null
-
-async function onShareEnter() {
-  clearTimeout(qrHideTimer)
-  qrDataUrl.value = await QRCode.toDataURL(window.location.href, { width: 160, margin: 1 })
-  showQR.value = true
+// Phase B: template helper to replace ternary chain on participant border
+function participantBorderClass(p) {
+  if (p.suspended) return 'opacity-50 border-gray-200 dark:border-gray-700'
+  if (!roomStore.isRevealed && p.vote) return 'border-green-400 dark:border-green-500'
+  if (voteExtremes.value.highest.has(p.id)) return 'border-orange-400 dark:border-orange-500'
+  if (voteExtremes.value.lowest.has(p.id)) return 'border-blue-400 dark:border-blue-500'
+  return 'border-gray-200 dark:border-gray-700'
 }
 
-function onShareLeave() {
-  qrHideTimer = setTimeout(() => { showQR.value = false }, 400)
+// Phase B: template helper for topic list item class
+function topicItemClass(topic, idx) {
+  const base = 'flex items-center gap-3 rounded-lg border px-4 py-2.5 bg-white dark:bg-gray-800 transition-colors'
+  const active = idx === roomStore.currentTopicIndex
+    ? 'border-indigo-400 dark:border-indigo-500'
+    : 'border-gray-200 dark:border-gray-700'
+  const clickable = isOwner.value && idx !== roomStore.currentTopicIndex
+    ? 'cursor-pointer hover:border-indigo-300 dark:hover:border-indigo-600'
+    : ''
+  return `${base} ${active} ${clickable}`
 }
 
-function copyInviteLink() {
-  navigator.clipboard.writeText(window.location.href)
-  if (copyToastTimer) clearTimeout(copyToastTimer)
-  copyToast.value = true
-  copyToastTimer = setTimeout(() => { copyToast.value = false }, 2000)
+function voteLabel(participant) {
+  if (!roomStore.isRevealed) {
+    if (participant.vote) return { text: '✓', class: 'text-green-500 font-bold text-[22px]' }
+    return { text: '', class: '' }
+  }
+  return { text: participant.vote ?? '–', class: 'font-bold' }
 }
 
 onMounted(async () => {
@@ -1064,14 +776,7 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
-  clearInterval(timerInterval)
-  cancelAnimationFrame(fireworksRaf)
-  clearTimeout(copyToastTimer)
-  clearTimeout(volumeHideTimer)
-  clearTimeout(volumeDebounceTimer)
-  clearTimeout(qrHideTimer)
   document.removeEventListener('click', onClickOutsideMood, true)
-  stopThinkingAudio()
 })
 
 onUnmounted(() => {
