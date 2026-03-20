@@ -1,9 +1,6 @@
 import { ref, computed, watch, onBeforeUnmount } from 'vue'
 
 export function useTimer(roomId, roomStore, userStore) {
-  const timerDialog = ref(false)
-  const timerInput = ref(null)
-  const timerUnit = ref('minutes')
   const timerRemaining = ref(null)
   let timerInterval = null
 
@@ -38,10 +35,7 @@ export function useTimer(roomId, roomStore, userStore) {
     }
   })
 
-  async function startTimer() {
-    if (!timerInput.value || timerInput.value < 1) return
-    const seconds = timerUnit.value === 'minutes' ? timerInput.value * 60 : timerInput.value
-    timerDialog.value = false
+  async function startTimer(seconds) {
     await fetch(`/api/rooms/${roomId}/timer`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -50,7 +44,6 @@ export function useTimer(roomId, roomStore, userStore) {
   }
 
   async function stopTimer() {
-    timerDialog.value = false
     await fetch(`/api/rooms/${roomId}/timer`, {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
@@ -63,7 +56,6 @@ export function useTimer(roomId, roomStore, userStore) {
   })
 
   return {
-    timerDialog, timerInput, timerUnit, timerRemaining,
-    formattedTimer, startCountdownFrom, startTimer, stopTimer,
+    timerRemaining, formattedTimer, startCountdownFrom, startTimer, stopTimer,
   }
 }

@@ -14,7 +14,7 @@
         <input
           id="nickname"
           v-model="nickname"
-          @input="nicknameError = false"
+          @input="nicknameError = ''"
           type="text"
           maxlength="32"
           placeholder="Enter your nickname"
@@ -25,13 +25,13 @@
               : 'border-gray-300 dark:border-gray-600 focus:ring-indigo-500'
           ]"
         />
-        <p v-if="nicknameError" class="text-red-500 text-sm">Please enter a nickname first.</p>
+        <p v-if="nicknameError" class="text-red-500 text-sm">{{ nicknameError }}</p>
       </section>
 
       <!-- Action Buttons -->
       <div class="flex gap-4">
         <button
-          @click="nickname.trim() ? (showCreate = true) : (nicknameError = true)"
+          @click="openCreate"
           class="flex-1 flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-3 font-semibold text-white hover:bg-indigo-700 transition-colors"
         >
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -40,7 +40,7 @@
           Create a room
         </button>
         <button
-          @click="nickname.trim() ? (showJoin = true) : (nicknameError = true)"
+          @click="openJoin"
           class="flex-1 flex items-center justify-center gap-2 rounded-xl border border-indigo-600 px-4 py-3 font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors"
         >
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -79,13 +79,20 @@
               </svg>
             </button>
           </div>
-          <input
-            v-model="newRoomName"
-            type="text"
-            maxlength="80"
-            placeholder="Room name"
-            class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
+          <div class="space-y-1">
+            <input
+              v-model="newRoomName"
+              @input="roomNameError = ''"
+              type="text"
+              maxlength="80"
+              placeholder="Room name"
+              :class="[
+                'w-full rounded-lg border bg-white dark:bg-gray-800 px-4 py-2 focus:outline-none focus:ring-2 transition-colors',
+                roomNameError ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-gray-600 focus:ring-indigo-500',
+              ]"
+            />
+            <p v-if="roomNameError" class="text-red-500 text-xs">{{ roomNameError }}</p>
+          </div>
           <select
             v-model="selectedCardSet"
             class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -362,7 +369,8 @@ const cardSets = ref({})
 const error = ref('')
 const showCreate = ref(false)
 const showJoin = ref(false)
-const nicknameError = ref(false)
+const nicknameError = ref('')
+const roomNameError = ref('')
 
 const legalOpen = ref(false)
 const legalSection = ref('impressum')
@@ -392,9 +400,24 @@ const canCreate = computed(() => {
 })
 const canJoin = computed(() => nickname.value.trim() && joinCode.value.trim())
 
+function validateNickname() {
+  if (!nickname.value.trim()) { nicknameError.value = 'Please enter a nickname first.'; return false }
+  if (nickname.value.includes(';')) { nicknameError.value = 'Nickname must not contain ";".'; return false }
+  return true
+}
+
+function openCreate() {
+  if (validateNickname()) showCreate.value = true
+}
+
+function openJoin() {
+  if (validateNickname()) showJoin.value = true
+}
+
 watch(showCreate, open => {
   if (!open) {
     newRoomName.value = ''
+    roomNameError.value = ''
     selectedCardSet.value = ''
     customCardInput.value = ''
     customCardError.value = ''
@@ -418,6 +441,11 @@ onMounted(async () => {
 async function createRoom() {
   error.value = ''
   customCardError.value = ''
+
+  if (newRoomName.value.includes(';')) {
+    roomNameError.value = 'Room name must not contain ";".'
+    return
+  }
 
   if (selectedCardSet.value === '__custom__') {
     if (parsedCustomCards.value.length < 2) {

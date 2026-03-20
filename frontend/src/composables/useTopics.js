@@ -5,8 +5,6 @@ export function useTopics(roomId, roomStore, apiFetch, error) {
   const newTopicName = ref('')
   const newTopicLink = ref('')
   const editingTopic = ref(null)
-  const editTopicName = ref('')
-  const editTopicLink = ref('')
 
   async function addTopic() {
     if (!newTopicName.value.trim()) return
@@ -48,16 +46,13 @@ export function useTopics(roomId, roomStore, apiFetch, error) {
 
   function openEditTopic(topic) {
     editingTopic.value = topic
-    editTopicName.value = topic.short_name
-    editTopicLink.value = topic.link
   }
 
-  async function saveEditTopic() {
-    if (!editTopicName.value.trim() || !editingTopic.value) return
+  async function saveEditTopic(topicId, { short_name, link }) {
     try {
-      await apiFetch(`/api/rooms/${roomId}/topics/${editingTopic.value.id}`, 'PATCH', {
-        short_name: editTopicName.value.trim(),
-        link: editTopicLink.value.trim(),
+      await apiFetch(`/api/rooms/${roomId}/topics/${topicId}`, 'PATCH', {
+        short_name: short_name.trim(),
+        link: link?.trim() ?? '',
       })
       editingTopic.value = null
       if (!roomStore.isRevealed) roomStore.applyEvent({ type: 'votes_reset', data: {} })
@@ -65,8 +60,7 @@ export function useTopics(roomId, roomStore, apiFetch, error) {
   }
 
   return {
-    showAddTopic, newTopicName, newTopicLink,
-    editingTopic, editTopicName, editTopicLink,
+    showAddTopic, newTopicName, newTopicLink, editingTopic,
     addTopic, moveTopic, deleteTopic, selectTopic,
     openEditTopic, saveEditTopic,
   }
