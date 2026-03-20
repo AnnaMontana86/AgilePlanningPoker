@@ -89,6 +89,8 @@ export const useRoomStore = defineStore('room', () => {
       room.value.timer_ends_at = data.ends_at
     } else if (type === 'timer_stopped') {
       room.value.timer_ends_at = null
+    } else if (type === 'note_updated') {
+      room.value.note = data.note
     }
   }
 
