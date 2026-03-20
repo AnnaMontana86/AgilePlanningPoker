@@ -12,6 +12,7 @@ class Topic(BaseModel):
     short_name: str = Field(..., min_length=1, max_length=100)
     link: str = ""
     estimates: list[str] | None = None  # None = not estimated yet
+    participant_votes: dict[str, str] | None = None  # nickname → card
 
 
 class Room(BaseModel):
@@ -29,6 +30,8 @@ class Room(BaseModel):
 
     music_playing: bool = False
     music_volume: float = 0.05
+
+    note: str | None = None
 
     def touch(self) -> None:
         self.last_activity_at = datetime.utcnow()

@@ -76,6 +76,11 @@ class SelectTopicRequest(BaseModel):
     token: str
 
 
+class NoteRequest(BaseModel):
+    token: str
+    note: str | None = None  # None = clear note
+
+
 ALLOWED_EMOJIS = {"🤔", "😄", "😢", "❤️", "☕", "🍺"}
 
 
@@ -190,8 +195,9 @@ async def new_round(room_id: str, req: OwnerActionRequest):
     if room.topics and room.current_topic_index < len(room.topics):
         topic = room.topics[room.current_topic_index]
         card_order = {card: i for i, card in enumerate(room.card_set.cards)}
-        votes = [p.vote for p in room.participants.values() if p.vote is not None]
-        topic.estimates = sorted(votes, key=lambda v: card_order.get(v, len(room.card_set.cards)))
+        voted = [(p.nickname, p.vote) for p in room.participants.values() if p.vote is not None]
+        topic.estimates = sorted([v for _, v in voted], key=lambda v: card_order.get(v, len(room.card_set.cards)))
+        topic.participant_votes = {nickname: vote for nickname, vote in voted}
         estimated_topic = topic.model_dump()
     for p in room.participants.values():
         p.vote = None
@@ -278,6 +284,7 @@ async def edit_topic(room_id: str, topic_id: str, req: EditTopicRequest):
     topic.short_name = req.short_name
     topic.link = req.link
     topic.estimates = None
+    topic.participant_votes = None
     votes_reset = not room.current_round.revealed
     if votes_reset:
         for p in room.participants.values():
@@ -462,6 +469,19 @@ async def leave_room(room_id: str, req: LeaveRequest):
         "new_owner_id": new_owner_id,
     })
     return {"ok": True}
+
+
+@router.patch("/rooms/{room_id}/note")
+async def update_note(room_id: str, req: NoteRequest):
+    room = _get_room_or_404(room_id)
+    owner = next((p for p in room.participants.values() if p.is_owner), None)
+    if not owner or req.token != owner.id:
+        raise HTTPException(status_code=403, detail="Only the room owner can update the note")
+    note = req.note.strip() if req.note else None
+    room.note = note or None
+    store.save_room(room)
+    await broadcaster.broadcast(room_id, "note_updated", {"note": room.note})
+    return {"ok": True, "note": room.note}
 
 
 @router.get("/rooms/{room_id}/events")
