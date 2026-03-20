@@ -156,325 +156,178 @@
       </header>
 
       <!-- Page body -->
-      <main class="flex-1 max-w-4xl w-full mx-auto px-4 py-8 space-y-8">
+      <main class="flex-1 flex flex-col lg:flex-row">
 
-        <!-- Round headline + current topic -->
-        <div class="text-center space-y-1">
-          <h2 class="text-3xl font-semibold text-gray-600 dark:text-gray-300">
-            Round {{ roomStore.currentRound?.number }}
-          </h2>
-          <div v-if="roomStore.currentTopic">
-            <a
-              v-if="roomStore.currentTopic.link"
-              :href="roomStore.currentTopic.link"
-              target="_blank"
-              rel="noopener"
-              class="inline-flex items-center gap-1.5 text-lg font-medium text-indigo-600 dark:text-indigo-400 hover:underline"
-            >
-              {{ roomStore.currentTopic.short_name }}
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z" />
-                <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z" />
-              </svg>
-            </a>
-            <span v-else class="text-lg font-medium text-gray-700 dark:text-gray-300">
-              {{ roomStore.currentTopic.short_name }}
-            </span>
-          </div>
-        </div>
+        <!-- ── Note sidebar (left on desktop, top on mobile) ── -->
+        <NoteSidebar :isOwner="isOwner" />
 
-        <!-- Owner action (centered) -->
-        <div v-if="isOwner" class="flex justify-center gap-3">
-          <div
-            class="relative"
-            data-testid="thinking-music-wrapper"
-            @mouseenter="onMusicWrapperEnter"
-            @mouseleave="onMusicWrapperLeave"
-          >
-            <button
-              v-if="!roomStore.isRevealed"
-              @click="toggleThinkingMusic"
-              :disabled="allVoted && !thinkingActive"
-              :class="[
-                'rounded-lg px-8 py-2.5 font-semibold transition-colors',
-                thinkingActive
-                  ? 'bg-amber-500 text-white hover:bg-amber-600'
-                  : 'border border-amber-400 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20',
-                allVoted && !thinkingActive ? 'opacity-50 cursor-not-allowed' : '',
-              ]"
-            >
-              {{ thinkingActive ? '⏹ Stop Music' : '🎵 Thinking time…' }}
-            </button>
-            <div
-              v-if="thinkingActive && showVolume"
-              class="absolute left-0 right-0 -bottom-8 flex items-center gap-1 px-2"
-            >
-              <span class="text-xs">🔈</span>
-              <input
-                type="range"
-                min="0" max="1" step="0.01"
-                v-model.number="volumeLevel"
-                class="w-full h-1 accent-amber-500 cursor-pointer"
-              />
-              <span class="text-xs">🔊</span>
-            </div>
-          </div>
-          <button
-            v-if="!roomStore.isRevealed"
-            @click="reveal"
-            :disabled="!allVoted"
-            class="rounded-lg bg-green-600 px-8 py-2.5 font-semibold text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            Reveal Cards
-          </button>
-          <template v-if="roomStore.isRevealed">
-            <button
-              @click="newRound"
-              class="rounded-lg bg-indigo-600 px-8 py-2.5 font-semibold text-white hover:bg-indigo-700 transition-colors"
-            >
-              Next Topic
-            </button>
-            <button
-              @click="retry"
-              class="rounded-lg border border-indigo-400 dark:border-indigo-500 px-8 py-2.5 font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors"
-            >
-              Revote
-            </button>
-          </template>
-        </div>
+        <!-- ── Primary column ── -->
+        <div class="flex-1 flex flex-col min-w-0">
+          <div class="max-w-3xl w-full mx-auto px-4 pt-8 space-y-8">
 
-        <!-- Participants -->
-        <section>
-          <h3 class="mb-3 text-sm font-medium text-gray-500 uppercase tracking-wide">Participants</h3>
-          <ul class="grid grid-cols-2 gap-2">
-            <li
-              v-for="p in roomStore.participants"
-              :key="p.id"
-              :class="[
-                'flex items-center justify-between rounded-lg border bg-white dark:bg-gray-800 px-4 py-3 transition-opacity',
-                p.suspended
-                  ? 'opacity-50 border-gray-200 dark:border-gray-700'
-                  : !roomStore.isRevealed && p.vote
-                    ? 'border-green-400 dark:border-green-500'
-                    : voteExtremes.highest.has(p.id)
-                      ? 'border-orange-400 dark:border-orange-500'
-                      : voteExtremes.lowest.has(p.id)
-                        ? 'border-blue-400 dark:border-blue-500'
-                        : 'border-gray-200 dark:border-gray-700'
-              ]"
-            >
-              <span :class="['font-medium flex items-center gap-1.5', p.suspended ? 'text-gray-400 dark:text-gray-500' : '']">
-                <span v-if="p.emoji" class="text-lg leading-none">{{ p.emoji }}</span>
-                {{ p.nickname }}
-                <span v-if="p.is_owner" class="ml-1 text-xs text-indigo-500">owner</span>
-                <span v-if="p.suspended" class="ml-1 text-xs text-yellow-500 dark:text-yellow-400">suspended</span>
-              </span>
-              <span class="flex items-center gap-3">
-                <span :class="voteLabel(p).class">{{ voteLabel(p).text }}</span>
-                <span v-if="roomStore.isRevealed && voteExtremes.highest.has(p.id)"
-                  class="text-xs font-semibold text-orange-500">▲</span>
-                <span v-if="roomStore.isRevealed && voteExtremes.lowest.has(p.id)"
-                  class="text-xs font-semibold text-blue-500">▼</span>
-                <button
-                  v-if="isOwner && !p.is_owner"
-                  @click="suspend(p.id)"
-                  :title="p.suspended ? 'Already suspended' : 'Suspend participant'"
-                  :disabled="p.suspended"
-                  class="text-gray-400 hover:text-yellow-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                >
-                  <!-- Pause icon -->
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-                    <rect x="6" y="4" width="4" height="16" rx="1"/>
-                    <rect x="14" y="4" width="4" height="16" rx="1"/>
-                  </svg>
-                </button>
-              </span>
-            </li>
-          </ul>
-          <!-- Results after reveal -->
-          <p v-if="roomStore.isRevealed && (numericAverage !== null || mostPopularVote !== null)" class="mt-3 text-sm text-gray-500 text-center space-x-4">
-            <span v-if="numericAverage !== null">Average: <span class="font-bold text-gray-900 dark:text-gray-100">{{ numericAverage }}</span></span>
-            <span v-if="mostPopularVote !== null">Most popular: <span class="font-bold text-gray-900 dark:text-gray-100">{{ mostPopularVote }}</span></span>
-          </p>
-        </section>
-
-        <!-- Card selection (centered) -->
-        <section v-if="!roomStore.isRevealed" class="flex flex-col items-center gap-3">
-          <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wide">Your vote</h3>
-          <p v-if="isSuspended" class="text-sm text-yellow-600 dark:text-yellow-400">You are suspended — pick a card to re-enable yourself.</p>
-          <div class="flex flex-wrap justify-center gap-3">
-            <button
-              v-for="card in roomStore.cardSet?.cards"
-              :key="card"
-              @click="vote(card)"
-              :class="[
-                'h-20 w-14 rounded-xl border-2 text-lg font-bold transition-all bg-white dark:bg-gray-800',
-                myVote === card
-                  ? 'border-blue-900 dark:border-blue-800'
-                  : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-400',
-              ]"
-            >
-              {{ card }}
-            </button>
-          </div>
-        </section>
-
-        <!-- Topics -->
-        <section v-if="roomStore.topics.length > 0 || isOwner">
-          <div class="flex items-center justify-between mb-3">
-            <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wide">Topics</h3>
-            <button
-              v-if="isOwner"
-              @click="showAddTopic = !showAddTopic"
-              class="flex items-center gap-1 text-sm text-indigo-600 dark:text-indigo-400 hover:underline"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
-              </svg>
-              Add Topic
-            </button>
-          </div>
-
-          <!-- Add topic form -->
-          <div v-if="showAddTopic" class="mb-3 flex gap-2">
-            <input
-              v-model="newTopicName"
-              placeholder="Short name"
-              @keydown.enter="addTopic"
-              class="flex-1 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-            <input
-              v-model="newTopicLink"
-              placeholder="Link (optional)"
-              @keydown.enter="addTopic"
-              class="flex-1 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-            <button
-              @click="addTopic"
-              :disabled="!newTopicName.trim()"
-              class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >Add</button>
-            <button
-              @click="showAddTopic = false"
-              class="rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-            >Cancel</button>
-          </div>
-
-          <!-- Topic list -->
-          <ol class="space-y-2">
-            <li
-              v-for="(topic, idx) in roomStore.topics"
-              :key="topic.id"
-              :class="[
-                'flex items-center gap-3 rounded-lg border px-4 py-2.5 bg-white dark:bg-gray-800 transition-colors',
-                idx === roomStore.currentTopicIndex
-                  ? 'border-indigo-400 dark:border-indigo-500'
-                  : 'border-gray-200 dark:border-gray-700',
-                isOwner && idx !== roomStore.currentTopicIndex ? 'cursor-pointer hover:border-indigo-300 dark:hover:border-indigo-600' : ''
-              ]"
-              @click="isOwner && idx !== roomStore.currentTopicIndex && selectTopic(topic.id)"
-            >
-              <span class="w-5 text-xs text-gray-400 shrink-0">{{ idx + 1 }}</span>
-              <span
-                v-if="idx === roomStore.currentTopicIndex"
-                class="h-2 w-2 rounded-full bg-indigo-500 shrink-0"
-              ></span>
-              <span class="flex-1 min-w-0 truncate">
+            <!-- Round headline + current topic -->
+            <div class="text-center space-y-1">
+              <h2 class="text-3xl font-semibold text-gray-600 dark:text-gray-300">
+                Round {{ roomStore.currentRound?.number }}
+              </h2>
+              <div v-if="roomStore.currentTopic">
                 <a
-                  v-if="topic.link"
-                  :href="topic.link"
+                  v-if="roomStore.currentTopic.link"
+                  :href="roomStore.currentTopic.link"
                   target="_blank"
                   rel="noopener"
-                  class="text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:underline"
-                  @click.stop
-                >{{ topic.short_name }}</a>
-                <span v-else class="text-sm font-medium">{{ topic.short_name }}</span>
-              </span>
-              <!-- Estimated badge -->
-              <span v-if="topic.estimates != null" class="flex items-center gap-1 shrink-0">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-green-500" viewBox="0 0 20 20" fill="currentColor">
-                  <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
-                </svg>
-                <span
-                  v-for="e in compactEstimates(topic.estimates)"
-                  :key="e.label"
-                  class="rounded-full bg-green-100 dark:bg-green-900/40 px-1.5 py-0.5 text-xs font-medium"
-                ><span class="text-green-700 dark:text-green-300">{{ e.value }}</span><span v-if="e.count > 1" class="text-gray-500 dark:text-gray-400">({{ e.count }}x)</span></span>
-              </span>
-              <div v-if="isOwner" class="flex items-center gap-1 shrink-0" @click.stop>
-                <button
-                  @click="openEditTopic(topic)"
-                  class="rounded p-1 text-gray-400 hover:text-indigo-500 transition-colors"
-                  title="Edit topic"
+                  class="inline-flex items-center gap-1.5 text-lg font-medium text-indigo-600 dark:text-indigo-400 hover:underline"
                 >
+                  {{ roomStore.currentTopic.short_name }}
                   <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                    <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z" />
+                    <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z" />
                   </svg>
-                </button>
-                <button
-                  @click="moveTopic(idx, -1)"
-                  :disabled="idx === 0"
-                  class="rounded p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 disabled:opacity-30 transition-colors"
-                  title="Move up"
-                >↑</button>
-                <button
-                  @click="moveTopic(idx, 1)"
-                  :disabled="idx === roomStore.topics.length - 1"
-                  class="rounded p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 disabled:opacity-30 transition-colors"
-                  title="Move down"
-                >↓</button>
-                <button
-                  @click="deleteTopic(topic.id)"
-                  class="rounded p-1 text-red-400 hover:text-red-600 transition-colors"
-                  title="Remove topic"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
-                  </svg>
-                </button>
+                </a>
+                <span v-else class="text-lg font-medium text-gray-700 dark:text-gray-300">
+                  {{ roomStore.currentTopic.short_name }}
+                </span>
               </div>
-            </li>
-          </ol>
-        </section>
+            </div>
 
-        <p v-if="error" class="text-red-500 text-sm text-center">{{ error }}</p>
-      </main>
+            <!-- Owner action (centered) -->
+            <div v-if="isOwner" class="flex justify-center gap-3">
+              <div
+                class="relative"
+                data-testid="thinking-music-wrapper"
+                @mouseenter="onMusicWrapperEnter"
+                @mouseleave="onMusicWrapperLeave"
+              >
+                <button
+                  v-if="!roomStore.isRevealed"
+                  @click="toggleThinkingMusic"
+                  :disabled="allVoted && !thinkingActive"
+                  :class="[
+                    'rounded-lg px-8 py-2.5 font-semibold transition-colors',
+                    thinkingActive
+                      ? 'bg-amber-500 text-white hover:bg-amber-600'
+                      : 'border border-amber-400 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20',
+                    allVoted && !thinkingActive ? 'opacity-50 cursor-not-allowed' : '',
+                  ]"
+                >
+                  {{ thinkingActive ? '⏹ Stop Music' : '🎵 Thinking time…' }}
+                </button>
+                <div
+                  v-if="thinkingActive && showVolume"
+                  class="absolute left-0 right-0 -bottom-8 flex items-center gap-1 px-2"
+                >
+                  <span class="text-xs">🔈</span>
+                  <input
+                    type="range"
+                    min="0" max="1" step="0.01"
+                    v-model.number="volumeLevel"
+                    class="w-full h-1 accent-amber-500 cursor-pointer"
+                  />
+                  <span class="text-xs">🔊</span>
+                </div>
+              </div>
+              <button
+                v-if="!roomStore.isRevealed"
+                @click="reveal"
+                :disabled="!allVoted"
+                class="rounded-lg bg-green-600 px-8 py-2.5 font-semibold text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Reveal Cards
+              </button>
+              <template v-if="roomStore.isRevealed">
+                <button
+                  @click="newRound"
+                  class="rounded-lg bg-indigo-600 px-8 py-2.5 font-semibold text-white hover:bg-indigo-700 transition-colors"
+                >
+                  Next Topic
+                </button>
+                <button
+                  @click="retry"
+                  class="rounded-lg border border-indigo-400 dark:border-indigo-500 px-8 py-2.5 font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors"
+                >
+                  Revote
+                </button>
+              </template>
+            </div>
 
-      <!-- Edit topic dialog -->
-      <div
-        v-if="editingTopic"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-        @click.self="editingTopic = null"
-      >
-        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 w-96 space-y-4">
-          <h3 class="text-lg font-semibold">Edit Topic</h3>
-          <div class="space-y-3">
-            <input
-              v-model="editTopicName"
-              placeholder="Short name"
-              @keydown.enter="saveEditTopic"
-              class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-            <input
-              v-model="editTopicLink"
-              placeholder="Link (optional)"
-              @keydown.enter="saveEditTopic"
-              class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
+            <!-- Participants -->
+            <section>
+              <h3 class="mb-3 text-sm font-medium text-gray-500 uppercase tracking-wide">Participants</h3>
+              <ul class="grid grid-cols-2 gap-2">
+                <li
+                  v-for="p in roomStore.participants"
+                  :key="p.id"
+                  :class="[
+                    'flex items-center justify-between rounded-lg border bg-white dark:bg-gray-800 px-4 py-3 transition-opacity',
+                    participantBorderClass(p),
+                  ]"
+                >
+                  <span :class="['font-medium flex items-center gap-1.5', p.suspended ? 'text-gray-400 dark:text-gray-500' : '']">
+                    <span v-if="p.emoji" class="text-lg leading-none">{{ p.emoji }}</span>
+                    {{ p.nickname }}
+                    <span v-if="p.is_owner" class="ml-1 text-xs text-indigo-500">owner</span>
+                    <span v-if="p.suspended" class="ml-1 text-xs text-yellow-500 dark:text-yellow-400">suspended</span>
+                  </span>
+                  <span class="flex items-center gap-3">
+                    <span :class="voteLabel(p).class">{{ voteLabel(p).text }}</span>
+                    <span v-if="roomStore.isRevealed && voteExtremes.highest.has(p.id)"
+                      class="text-xs font-semibold text-orange-500">▲</span>
+                    <span v-if="roomStore.isRevealed && voteExtremes.lowest.has(p.id)"
+                      class="text-xs font-semibold text-blue-500">▼</span>
+                    <button
+                      v-if="isOwner && !p.is_owner"
+                      @click="suspend(p.id)"
+                      :title="p.suspended ? 'Already suspended' : 'Suspend participant'"
+                      :disabled="p.suspended"
+                      class="text-gray-400 hover:text-yellow-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                        <rect x="6" y="4" width="4" height="16" rx="1"/>
+                        <rect x="14" y="4" width="4" height="16" rx="1"/>
+                      </svg>
+                    </button>
+                  </span>
+                </li>
+              </ul>
+              <!-- Results after reveal -->
+              <p v-if="roomStore.isRevealed && (numericAverage !== null || mostPopularVote !== null)" class="mt-3 text-sm text-gray-500 text-center space-x-4">
+                <span v-if="numericAverage !== null">Average: <span class="font-bold text-gray-900 dark:text-gray-100">{{ numericAverage }}</span></span>
+                <span v-if="mostPopularVote !== null">Most popular: <span class="font-bold text-gray-900 dark:text-gray-100">{{ mostPopularVote }}</span></span>
+              </p>
+            </section>
+
           </div>
-          <div class="flex justify-end gap-3">
-            <button
-              @click="editingTopic = null"
-              class="rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-            >Cancel</button>
-            <button
-              @click="saveEditTopic"
-              :disabled="!editTopicName.trim()"
-              class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >Save</button>
+
+          <!-- Card selection — full browser width on desktop -->
+          <section v-if="!roomStore.isRevealed" class="w-full flex flex-col items-center gap-3 px-4 py-8 sm:py-6">
+            <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wide">Your vote</h3>
+            <p v-if="isSuspended" class="text-sm text-yellow-600 dark:text-yellow-400">You are suspended — pick a card to re-enable yourself.</p>
+            <div class="flex flex-wrap justify-center gap-3">
+              <button
+                v-for="card in roomStore.cardSet?.cards"
+                :key="card"
+                @click="vote(card)"
+                :class="[
+                  'h-20 w-14 rounded-xl border-2 text-lg font-bold transition-all bg-white dark:bg-gray-800',
+                  myVote === card
+                    ? 'border-blue-900 dark:border-blue-800'
+                    : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-400',
+                ]"
+              >
+                {{ card }}
+              </button>
+            </div>
+          </section>
+
+          <div class="max-w-3xl w-full mx-auto px-4 pb-8">
+            <p v-if="error" class="text-red-500 text-sm text-center">{{ error }}</p>
           </div>
         </div>
-      </div>
+
+        <!-- ── Topics sidebar (right on desktop, bottom on mobile) ── -->
+        <TopicsSidebar :isOwner="isOwner" />
+
+      </main>
 
       <!-- Copy toast -->
       <Transition
@@ -504,62 +357,35 @@
       />
 
       <!-- Timer dialog -->
-      <div
-        v-if="timerDialog"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-        @click.self="timerDialog = false"
-      >
-        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 w-96 space-y-5">
-          <h3 class="text-lg font-semibold">Set Timer</h3>
-
-          <div class="flex gap-3">
-            <input
-              v-model.number="timerInput"
-              type="number"
-              min="1"
-              placeholder="Duration"
-              class="flex-1 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            />
-            <select
-              v-model="timerUnit"
-              class="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              <option value="seconds">sec</option>
-              <option value="minutes">min</option>
-            </select>
-          </div>
-
-          <div class="flex justify-between gap-3">
-            <button
-              v-if="timerRemaining !== null"
-              @click="stopTimer"
-              class="rounded-lg border border-red-300 dark:border-red-700 px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-            >Delete Timer</button>
-            <div class="flex gap-3 ml-auto">
-              <button
-                @click="timerDialog = false"
-                class="rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-              >Cancel</button>
-              <button
-                @click="startTimer"
-                :disabled="!timerInput || timerInput < 1"
-                class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >Start</button>
-            </div>
-          </div>
-        </div>
-      </div>
+      <TimerDialog
+        :open="timerDialog"
+        :timerRemaining="timerRemaining"
+        @start="startTimer"
+        @stop="stopTimer"
+        @close="timerDialog = false"
+      />
     </template>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, onUnmounted, onBeforeUnmount, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useRoomStore } from '../stores/room'
 import { useUserStore } from '../stores/user'
 import { useThemeStore } from '../stores/theme'
-import QRCode from 'qrcode'
+
+import { useTimer } from '../composables/useTimer'
+import { useThinkingMusic } from '../composables/useThinkingMusic'
+import { useVoteAnalysis } from '../composables/useVoteAnalysis'
+import { useShare } from '../composables/useShare'
+import { useFireworks } from '../composables/useFireworks'
+import { useJoinFlow } from '../composables/useJoinFlow'
+import { useEmoji } from '../composables/useEmoji'
+
+import NoteSidebar from '../components/NoteSidebar.vue'
+import TopicsSidebar from '../components/TopicsSidebar.vue'
+import TimerDialog from '../components/TimerDialog.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -569,260 +395,19 @@ const themeStore = useThemeStore()
 
 const error = ref('')
 const roomId = route.params.roomId
-
-// Join flow for share-link visitors
-const joining = ref(false)
-const joinNickname = ref(userStore.nickname ?? '')
-const joinError = ref('')
-
-async function joinRoom() {
-  if (!joinNickname.value.trim()) return
-  joinError.value = ''
-  try {
-    const res = await fetch(`/api/rooms/${roomId}/join`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nickname: joinNickname.value.trim() }),
-    })
-    if (!res.ok) throw new Error((await res.json()).detail ?? res.statusText)
-    const data = await res.json()
-    userStore.setNickname(joinNickname.value.trim())
-    userStore.setSession(data.participant_id, data.token)
-    const refreshed = await fetch(`/api/rooms/${roomId}`)
-    if (refreshed.ok) roomStore.setRoom(await refreshed.json())
-    joining.value = false
-    roomStore.connectSSE(roomId)
-  } catch (e) {
-    joinError.value = e.message
-  }
-}
-
-// Timer
 const timerDialog = ref(false)
-const timerInput = ref(null)
-const timerUnit = ref('minutes')
-const timerRemaining = ref(null)
-let timerInterval = null
 
-const formattedTimer = computed(() => {
-  if (timerRemaining.value === null) return ''
-  const m = Math.floor(timerRemaining.value / 60)
-  const s = timerRemaining.value % 60
-  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
-})
-
-function startCountdownFrom(endsAt) {
-  clearInterval(timerInterval)
-  const utcStr = endsAt.endsWith('Z') ? endsAt : endsAt + 'Z'
-  const remaining = Math.round((new Date(utcStr) - Date.now()) / 1000)
-  if (remaining <= 0) { timerRemaining.value = 0; return }
-  timerRemaining.value = remaining
-  timerInterval = setInterval(() => {
-    timerRemaining.value--
-    if (timerRemaining.value <= 0) {
-      timerRemaining.value = 0
-      clearInterval(timerInterval)
-    }
-  }, 1000)
-}
-
-watch(() => roomStore.room?.timer_ends_at, (endsAt) => {
-  if (endsAt) {
-    startCountdownFrom(endsAt)
-  } else {
-    clearInterval(timerInterval)
-    timerRemaining.value = null
-  }
-})
-
-async function startTimer() {
-  if (!timerInput.value || timerInput.value < 1) return
-  const seconds = timerUnit.value === 'minutes' ? timerInput.value * 60 : timerInput.value
-  timerDialog.value = false
-  await fetch(`/api/rooms/${roomId}/timer`, {
-    method: 'POST',
+async function apiFetch(path, method = 'POST', body = {}) {
+  const res = await fetch(path, {
+    method,
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ token: userStore.token, duration_seconds: seconds }),
+    body: JSON.stringify({ token: userStore.token, ...body }),
   })
+  if (!res.ok) throw new Error((await res.json()).detail ?? res.statusText)
+  return res.json()
 }
 
-async function stopTimer() {
-  timerDialog.value = false
-  await fetch(`/api/rooms/${roomId}/timer`, {
-    method: 'DELETE',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ token: userStore.token }),
-  })
-}
-
-const EMOJIS = ['🤔', '😄', '😢', '❤️', '☕', '🍺']
-const myEmoji = ref(null)
-const moodOpen = ref(false)
-const moodAnchor = ref(null)
-
-const thinkingActive = computed(() => roomStore.room?.music_playing ?? false)
-const volumeLevel = ref(0.05)
-const showVolume = ref(false)
-let thinkingAudio = null
-let volumeHideTimer = null
-let volumeDebounceTimer = null
-
-function onMusicWrapperEnter() {
-  clearTimeout(volumeHideTimer)
-  showVolume.value = true
-}
-
-function onMusicWrapperLeave() {
-  volumeHideTimer = setTimeout(() => { showVolume.value = false }, 400)
-}
-
-function startThinkingAudio() {
-  if (thinkingAudio) return
-  thinkingAudio = new Audio('/sounds/thinking-time.mp3')
-  thinkingAudio.loop = true
-  thinkingAudio.volume = volumeLevel.value
-  thinkingAudio.play()
-}
-
-watch(volumeLevel, v => {
-  if (thinkingAudio) thinkingAudio.volume = v
-  if (isOwner.value && thinkingActive.value) {
-    clearTimeout(volumeDebounceTimer)
-    volumeDebounceTimer = setTimeout(() => {
-      apiFetch(`/api/rooms/${roomId}/music`, 'POST', { playing: true, volume: v }).catch(() => {})
-    }, 300)
-  }
-})
-
-watch(() => roomStore.room?.music_volume, (v) => {
-  if (v !== undefined && v !== volumeLevel.value) volumeLevel.value = v
-})
-
-function stopThinkingAudio() {
-  thinkingAudio?.pause()
-  thinkingAudio = null
-}
-
-async function toggleThinkingMusic() {
-  try {
-    await apiFetch(`/api/rooms/${roomId}/music`, 'POST', { playing: !thinkingActive.value, volume: volumeLevel.value })
-  } catch (e) { error.value = e.message }
-}
-
-watch(thinkingActive, (playing) => {
-  if (playing) startThinkingAudio()
-  else stopThinkingAudio()
-})
-
-
-function onClickOutsideMood(e) {
-  if (moodAnchor.value && !moodAnchor.value.contains(e.target)) {
-    moodOpen.value = false
-  }
-}
-
-async function setEmoji(emoji) {
-  const next = myEmoji.value === emoji ? null : emoji
-  myEmoji.value = next
-  try {
-    await apiFetch(`/api/rooms/${roomId}/emoji`, 'POST', {
-      participant_id: userStore.participantId,
-      emoji: next,
-    })
-  } catch (e) {
-    myEmoji.value = myEmoji.value === null ? emoji : null // revert
-    error.value = e.message
-  }
-}
-
-const myVote = ref(null)
-
-// Reset local vote when a new round starts
-watch(() => roomStore.currentRound?.number, () => { myVote.value = null })
-
-// Fireworks
-const fireworksCanvas = ref(null)
-const fireworksActive = ref(false)
-let fireworksRaf = null
-
-const allSameVote = computed(() => {
-  if (!roomStore.isRevealed) return false
-  const votes = roomStore.participants.map(p => p.vote).filter(v => v != null)
-  return votes.length >= 2 && votes.every(v => v === votes[0])
-})
-
-watch(allSameVote, (same) => {
-  if (same) nextTick(launchFireworks)
-})
-
-function launchFireworks() {
-  fireworksActive.value = true
-  const canvas = fireworksCanvas.value
-  canvas.width = window.innerWidth
-  canvas.height = window.innerHeight
-  const ctx = canvas.getContext('2d')
-  const particles = []
-  const COLORS = ['#ff4444','#ff8800','#ffdd00','#44ff44','#44aaff','#aa44ff','#ff44aa','#ffffff']
-  const DURATION = 4000
-  const start = performance.now()
-
-  function spawnBurst() {
-    const x = 0.2 * canvas.width + Math.random() * 0.6 * canvas.width
-    const y = 0.1 * canvas.height + Math.random() * 0.45 * canvas.height
-    const color = COLORS[Math.floor(Math.random() * COLORS.length)]
-    const count = 80 + Math.floor(Math.random() * 40)
-    for (let i = 0; i < count; i++) {
-      const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.3
-      const speed = 2 + Math.random() * 5
-      particles.push({
-        x, y,
-        vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed,
-        alpha: 1,
-        color,
-        radius: 2 + Math.random() * 2,
-      })
-    }
-  }
-
-  let lastBurst = 0
-  function frame(now) {
-    const elapsed = now - start
-    if (elapsed > DURATION) {
-      ctx.clearRect(0, 0, canvas.width, canvas.height)
-      fireworksActive.value = false
-      return
-    }
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height)
-
-    if (now - lastBurst > 600) {
-      spawnBurst()
-      lastBurst = now
-    }
-
-    for (let i = particles.length - 1; i >= 0; i--) {
-      const p = particles[i]
-      p.x += p.vx
-      p.y += p.vy
-      p.vy += 0.08  // gravity
-      p.vx *= 0.98  // drag
-      p.alpha -= 0.013
-      if (p.alpha <= 0) { particles.splice(i, 1); continue }
-      ctx.globalAlpha = p.alpha
-      ctx.fillStyle = p.color
-      ctx.beginPath()
-      ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2)
-      ctx.fill()
-    }
-    ctx.globalAlpha = 1
-    fireworksRaf = requestAnimationFrame(frame)
-  }
-
-  spawnBurst()
-  fireworksRaf = requestAnimationFrame(frame)
-}
-
+// Derived participant state
 const isOwner = computed(() => {
   const me = roomStore.room?.participants?.[userStore.participantId]
   return me?.is_owner ?? false
@@ -838,71 +423,34 @@ const allVoted = computed(() => {
   return active.length > 0 && active.every(p => p.vote)
 })
 
-watch(allVoted, (voted) => {
-  if (voted && thinkingActive.value && isOwner.value) {
-    apiFetch(`/api/rooms/${roomId}/music`, 'POST', { playing: false }).catch(() => {})
-  }
-})
+// Composables
+const { joining, joinNickname, joinError, joinRoom } =
+  useJoinFlow(roomId, roomStore, userStore, router)
 
-const voteExtremes = computed(() => {
-  if (!roomStore.isRevealed) return { highest: new Set(), lowest: new Set() }
-  const numeric = roomStore.participants
-    .map(p => ({ id: p.id, n: parseFloat(p.vote) }))
-    .filter(p => !isNaN(p.n))
-  if (numeric.length < 2) return { highest: new Set(), lowest: new Set() }
-  const max = Math.max(...numeric.map(p => p.n))
-  const min = Math.min(...numeric.map(p => p.n))
-  if (max === min) return { highest: new Set(), lowest: new Set() }
-  return {
-    highest: new Set(numeric.filter(p => p.n === max).map(p => p.id)),
-    lowest:  new Set(numeric.filter(p => p.n === min).map(p => p.id)),
-  }
-})
+const { EMOJIS, myEmoji, moodOpen, moodAnchor, setEmoji } =
+  useEmoji(roomId, userStore, apiFetch, error)
 
-const numericAverage = computed(() => {
-  if (!roomStore.isRevealed) return null
-  const nums = roomStore.participants
-    .map(p => parseFloat(p.vote))
-    .filter(n => !isNaN(n))
-  if (!nums.length) return null
-  return (nums.reduce((a, b) => a + b, 0) / nums.length).toFixed(1)
-})
+const { timerRemaining, formattedTimer, startCountdownFrom, startTimer, stopTimer } =
+  useTimer(roomId, roomStore, userStore)
 
-const mostPopularVote = computed(() => {
-  if (!roomStore.isRevealed) return null
-  const votes = roomStore.participants.map(p => p.vote).filter(v => v != null)
-  if (!votes.length) return null
-  const counts = {}
-  for (const v of votes) counts[v] = (counts[v] ?? 0) + 1
-  const max = Math.max(...Object.values(counts))
-  if (max < 2) return null  // no card voted more than once
-  const winners = Object.keys(counts).filter(v => counts[v] === max)
-  return winners.join(' / ')
-})
+const { voteExtremes, numericAverage, mostPopularVote } =
+  useVoteAnalysis(roomStore)
 
-function compactEstimates(estimates) {
-  const counts = {}
-  for (const e of estimates) counts[e] = (counts[e] ?? 0) + 1
-  return Object.entries(counts).map(([value, count]) => ({ value, count, label: value }))
-}
+const { copyToast, showQR, qrDataUrl, onShareEnter, onShareLeave, copyInviteLink } =
+  useShare()
 
-function voteLabel(participant) {
-  if (!roomStore.isRevealed) {
-    if (participant.vote) return { text: '✓', class: 'text-green-500 font-bold text-[22px]' }
-    return { text: '', class: '' }
-  }
-  return { text: participant.vote ?? '–', class: 'font-bold' }
-}
+const { thinkingActive, volumeLevel, showVolume, onMusicWrapperEnter, onMusicWrapperLeave,
+        toggleThinkingMusic, startThinkingAudio, stopThinkingAudio } =
+  useThinkingMusic(roomId, roomStore, userStore, isOwner, allVoted)
 
-async function apiFetch(path, method = 'POST', body = {}) {
-  const res = await fetch(path, {
-    method,
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ token: userStore.token, ...body }),
-  })
-  if (!res.ok) throw new Error((await res.json()).detail ?? res.statusText)
-  return res.json()
-}
+const { fireworksCanvas, fireworksActive } =
+  useFireworks(roomStore)
+
+// Voting
+const myVote = ref(null)
+
+watch(() => roomStore.currentRound?.number, () => { myVote.value = null })
+watch(() => roomStore.votesResetCount, () => { myVote.value = null })
 
 async function vote(card) {
   error.value = ''
@@ -914,7 +462,7 @@ async function vote(card) {
       card: newCard,
     })
   } catch (e) {
-    myVote.value = newCard === null ? card : null // revert on error
+    myVote.value = newCard === null ? card : null
     error.value = e.message
   }
 }
@@ -931,75 +479,7 @@ async function retry() {
   try { await apiFetch(`/api/rooms/${roomId}/retry`) } catch (e) { error.value = e.message }
 }
 
-// Topics
-const showAddTopic = ref(false)
-const newTopicName = ref('')
-const newTopicLink = ref('')
-
-async function addTopic() {
-  if (!newTopicName.value.trim()) return
-  try {
-    await apiFetch(`/api/rooms/${roomId}/topics`, 'POST', {
-      short_name: newTopicName.value.trim(),
-      link: newTopicLink.value.trim(),
-    })
-    newTopicName.value = ''
-    newTopicLink.value = ''
-    showAddTopic.value = false
-  } catch (e) { error.value = e.message }
-}
-
-async function moveTopic(idx, dir) {
-  const topics = [...roomStore.topics]
-  const newIdx = idx + dir
-  if (newIdx < 0 || newIdx >= topics.length) return
-  ;[topics[idx], topics[newIdx]] = [topics[newIdx], topics[idx]]
-  try {
-    await apiFetch(`/api/rooms/${roomId}/topics`, 'PUT', {
-      topic_ids: topics.map(t => t.id),
-    })
-  } catch (e) { error.value = e.message }
-}
-
-async function deleteTopic(topicId) {
-  try {
-    await apiFetch(`/api/rooms/${roomId}/topics/${topicId}`, 'DELETE')
-  } catch (e) { error.value = e.message }
-}
-
-async function selectTopic(topicId) {
-  try {
-    await apiFetch(`/api/rooms/${roomId}/topics/${topicId}/select`)
-  } catch (e) { error.value = e.message }
-}
-
-const editingTopic = ref(null)
-const editTopicName = ref('')
-const editTopicLink = ref('')
-
-function openEditTopic(topic) {
-  editingTopic.value = topic
-  editTopicName.value = topic.short_name
-  editTopicLink.value = topic.link
-}
-
-async function saveEditTopic() {
-  if (!editTopicName.value.trim() || !editingTopic.value) return
-  try {
-    await apiFetch(`/api/rooms/${roomId}/topics/${editingTopic.value.id}`, 'PATCH', {
-      short_name: editTopicName.value.trim(),
-      link: editTopicLink.value.trim(),
-    })
-    editingTopic.value = null
-  } catch (e) { error.value = e.message }
-}
-
-async function kick(participantId) {
-  try {
-    await apiFetch(`/api/rooms/${roomId}/participants/${participantId}`, 'DELETE')
-  } catch (e) { error.value = e.message }
-}
-
+// Participant management
 async function suspend(participantId) {
   try {
     await apiFetch(`/api/rooms/${roomId}/participants/${participantId}/suspend`, 'POST')
@@ -1018,32 +498,23 @@ async function leaveRoom() {
   }
 }
 
-const copyToast = ref(false)
-let copyToastTimer = null
-
-const showQR = ref(false)
-const qrDataUrl = ref('')
-let qrHideTimer = null
-
-async function onShareEnter() {
-  clearTimeout(qrHideTimer)
-  qrDataUrl.value = await QRCode.toDataURL(window.location.href, { width: 160, margin: 1 })
-  showQR.value = true
+function participantBorderClass(p) {
+  if (p.suspended) return 'opacity-50 border-gray-200 dark:border-gray-700'
+  if (!roomStore.isRevealed && p.vote) return 'border-green-400 dark:border-green-500'
+  if (voteExtremes.value.highest.has(p.id)) return 'border-orange-400 dark:border-orange-500'
+  if (voteExtremes.value.lowest.has(p.id)) return 'border-blue-400 dark:border-blue-500'
+  return 'border-gray-200 dark:border-gray-700'
 }
 
-function onShareLeave() {
-  qrHideTimer = setTimeout(() => { showQR.value = false }, 400)
-}
-
-function copyInviteLink() {
-  navigator.clipboard.writeText(window.location.href)
-  if (copyToastTimer) clearTimeout(copyToastTimer)
-  copyToast.value = true
-  copyToastTimer = setTimeout(() => { copyToast.value = false }, 2000)
+function voteLabel(participant) {
+  if (!roomStore.isRevealed) {
+    if (participant.vote) return { text: '✓', class: 'text-green-500 font-bold text-[22px]' }
+    return { text: '', class: '' }
+  }
+  return { text: participant.vote ?? '–', class: 'font-bold' }
 }
 
 onMounted(async () => {
-  document.addEventListener('click', onClickOutsideMood, true)
   try {
     const res = await fetch(`/api/rooms/${roomId}`)
     if (!res.ok) { router.push({ name: 'home' }); return }
@@ -1061,17 +532,6 @@ onMounted(async () => {
   } catch {
     router.push({ name: 'home' })
   }
-})
-
-onBeforeUnmount(() => {
-  clearInterval(timerInterval)
-  cancelAnimationFrame(fireworksRaf)
-  clearTimeout(copyToastTimer)
-  clearTimeout(volumeHideTimer)
-  clearTimeout(volumeDebounceTimer)
-  clearTimeout(qrHideTimer)
-  document.removeEventListener('click', onClickOutsideMood, true)
-  stopThinkingAudio()
 })
 
 onUnmounted(() => {

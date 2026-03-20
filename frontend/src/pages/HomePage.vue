@@ -14,7 +14,7 @@
         <input
           id="nickname"
           v-model="nickname"
-          @input="nicknameError = false"
+          @input="nicknameError = ''"
           type="text"
           maxlength="32"
           placeholder="Enter your nickname"
@@ -25,13 +25,13 @@
               : 'border-gray-300 dark:border-gray-600 focus:ring-indigo-500'
           ]"
         />
-        <p v-if="nicknameError" class="text-red-500 text-sm">Please enter a nickname first.</p>
+        <p v-if="nicknameError" class="text-red-500 text-sm">{{ nicknameError }}</p>
       </section>
 
       <!-- Action Buttons -->
       <div class="flex gap-4">
         <button
-          @click="nickname.trim() ? (showCreate = true) : (nicknameError = true)"
+          @click="openCreate"
           class="flex-1 flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-3 font-semibold text-white hover:bg-indigo-700 transition-colors"
         >
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -40,7 +40,7 @@
           Create a room
         </button>
         <button
-          @click="nickname.trim() ? (showJoin = true) : (nicknameError = true)"
+          @click="openJoin"
           class="flex-1 flex items-center justify-center gap-2 rounded-xl border border-indigo-600 px-4 py-3 font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors"
         >
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -52,6 +52,15 @@
       </div>
 
       <p v-if="error" class="text-red-500 text-sm text-center">{{ error }}</p>
+
+      <!-- Legal footer -->
+      <div class="pt-2 text-center text-xs text-gray-400 dark:text-gray-500 space-x-2">
+        <button @click="openLegal('impressum')" class="hover:underline hover:text-gray-600 dark:hover:text-gray-300 transition-colors">Legal Notice</button>
+        <span aria-hidden="true">·</span>
+        <button @click="openLegal('privacy')" class="hover:underline hover:text-gray-600 dark:hover:text-gray-300 transition-colors">Privacy</button>
+        <span aria-hidden="true">·</span>
+        <button @click="openLegal('disclaimer')" class="hover:underline hover:text-gray-600 dark:hover:text-gray-300 transition-colors">Disclaimer</button>
+      </div>
     </div>
 
     <!-- Create Room Dialog -->
@@ -70,13 +79,20 @@
               </svg>
             </button>
           </div>
-          <input
-            v-model="newRoomName"
-            type="text"
-            maxlength="80"
-            placeholder="Room name"
-            class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
+          <div class="space-y-1">
+            <input
+              v-model="newRoomName"
+              @input="roomNameError = ''"
+              type="text"
+              maxlength="80"
+              placeholder="Room name"
+              :class="[
+                'w-full rounded-lg border bg-white dark:bg-gray-800 px-4 py-2 focus:outline-none focus:ring-2 transition-colors',
+                roomNameError ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-gray-600 focus:ring-indigo-500',
+              ]"
+            />
+            <p v-if="roomNameError" class="text-red-500 text-xs">{{ roomNameError }}</p>
+          </div>
           <select
             v-model="selectedCardSet"
             class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -109,6 +125,192 @@
           >
             Create Room
           </button>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- Legal Modal -->
+    <Teleport to="body">
+      <div
+        v-if="legalOpen"
+        class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+        @click.self="legalOpen = false"
+      >
+        <div class="w-full max-w-lg rounded-2xl bg-white dark:bg-gray-900 shadow-xl flex flex-col max-h-[80vh]">
+          <!-- Header with tabs -->
+          <div class="flex items-center justify-between border-b border-gray-200 dark:border-gray-700 px-6 pt-5 pb-0 shrink-0">
+            <nav class="flex gap-1 -mb-px">
+              <button
+                v-for="tab in legalTabs"
+                :key="tab.key"
+                @click="legalSection = tab.key"
+                :class="[
+                  'px-3 py-2 text-sm font-medium border-b-2 transition-colors',
+                  legalSection === tab.key
+                    ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300',
+                ]"
+              >{{ tab.label }}</button>
+            </nav>
+            <button @click="legalOpen = false" class="mb-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+              </svg>
+            </button>
+          </div>
+
+          <!-- Body -->
+          <div class="overflow-y-auto px-6 py-5 text-sm text-gray-700 dark:text-gray-300 space-y-4 leading-relaxed">
+
+            <!-- Legal Notice / Impressum -->
+            <template v-if="legalSection === 'impressum'">
+              <p class="text-xs text-gray-400 dark:text-gray-500 uppercase tracking-wide font-semibold">Impressum · Legal Notice pursuant to § 5 TMG</p>
+              <p>
+                This web application is operated as a free, non-commercial, open-source project
+                under the <strong>MIT License</strong>. The source code is publicly available on GitHub.
+              </p>
+              <div>
+                <p class="font-semibold">Responsible operator</p>
+                <p class="text-gray-500 dark:text-gray-400 italic">
+                  [Name of operator or organisation]<br>
+                  [Street, House number]<br>
+                  [Postcode, City, Country]<br>
+                  E-mail: [contact@example.com]
+                </p>
+                <p class="mt-1 text-xs text-gray-400 dark:text-gray-500">
+                  (Please replace the placeholders above with the actual operator's details
+                  before deploying publicly. German law requires a complete Impressum for
+                  publicly accessible web services — §§ 5–6 TMG, § 18 MStV.)
+                </p>
+              </div>
+              <div>
+                <p class="font-semibold">Responsible for editorial content (§ 18 Abs. 2 MStV)</p>
+                <p class="text-gray-500 dark:text-gray-400 italic">[Same as above]</p>
+              </div>
+              <div>
+                <p class="font-semibold">EU Online Dispute Resolution</p>
+                <p>
+                  The European Commission provides a platform for online dispute resolution (ODR):
+                  <span class="font-mono text-xs">https://ec.europa.eu/consumers/odr</span>.
+                  We are neither obliged nor willing to participate in dispute resolution proceedings
+                  before a consumer arbitration board, as this is a non-commercial service.
+                </p>
+              </div>
+            </template>
+
+            <!-- Privacy Notice -->
+            <template v-if="legalSection === 'privacy'">
+              <p class="text-xs text-gray-400 dark:text-gray-500 uppercase tracking-wide font-semibold">Privacy Notice · Datenschutzerklärung (GDPR / DSGVO)</p>
+              <div>
+                <p class="font-semibold">1. Controller</p>
+                <p>The operator listed in the Legal Notice is the data controller within the meaning of Art. 4 (7) GDPR.</p>
+              </div>
+              <div>
+                <p class="font-semibold">2. What data we process</p>
+                <p>This application is designed to minimise data collection:</p>
+                <ul class="list-disc list-inside space-y-1 mt-1">
+                  <li>
+                    <strong>Nicknames</strong> — entered voluntarily by you. Stored in server memory
+                    only for the duration of the active room session. Rooms expire automatically
+                    (typically after a few hours of inactivity) and all associated data is then
+                    permanently deleted from memory. Nothing is written to a database or persistent disk storage.
+                  </li>
+                  <li>
+                    <strong>Session tokens</strong> — a randomly generated identifier is stored in
+                    your browser's <code>localStorage</code> so you can reconnect to your room after
+                    a page refresh. It is never transmitted to any third party and is cleared when
+                    you leave the room or close the application.
+                  </li>
+                  <li>
+                    <strong>Server access logs</strong> — your IP address, request timestamp, and
+                    HTTP request URL are automatically recorded in standard web-server logs as required
+                    for the secure operation of any internet service (legal basis: Art. 6 (1)(f) GDPR —
+                    legitimate interest in IT security). Log files are not shared and are deleted
+                    according to the operator's log-retention policy.
+                  </li>
+                </ul>
+              </div>
+              <div>
+                <p class="font-semibold">3. No cookies, no tracking</p>
+                <p>
+                  We do not set cookies. We do not use analytics tools, advertising networks,
+                  or any third-party tracking services.
+                </p>
+              </div>
+              <div>
+                <p class="font-semibold">4. Data transfers</p>
+                <p>
+                  No personal data is transferred to third parties or to countries outside the
+                  European Economic Area (EEA).
+                </p>
+              </div>
+              <div>
+                <p class="font-semibold">5. Your rights (Art. 15–22 GDPR)</p>
+                <p>
+                  You have the right to access, rectify, erase, restrict, or object to the
+                  processing of your personal data, and the right to data portability.
+                  Because nicknames and session tokens are held only in volatile memory and
+                  are not linked to a verified identity, most requests can be fulfilled
+                  immediately by leaving the room (which clears all in-memory data).
+                  For inquiries regarding server logs, please contact the operator listed
+                  in the Legal Notice.
+                </p>
+              </div>
+              <div>
+                <p class="font-semibold">6. Right to lodge a complaint</p>
+                <p>
+                  You have the right to lodge a complaint with a supervisory authority.
+                  In Germany, the competent authority is the data protection authority
+                  (Datenschutzbehörde) of the federal state in which the operator is located.
+                </p>
+              </div>
+            </template>
+
+            <!-- Disclaimer -->
+            <template v-if="legalSection === 'disclaimer'">
+              <p class="text-xs text-gray-400 dark:text-gray-500 uppercase tracking-wide font-semibold">Disclaimer · Haftungsausschluss</p>
+              <div>
+                <p class="font-semibold">No warranty</p>
+                <p>
+                  This software is provided <strong>"as is"</strong>, without warranty of any kind,
+                  express or implied, including but not limited to the warranties of merchantability,
+                  fitness for a particular purpose, and non-infringement. In no event shall the
+                  authors or copyright holders be liable for any claim, damages, or other liability,
+                  whether in an action of contract, tort, or otherwise, arising from, out of, or in
+                  connection with the software or the use or other dealings in the software
+                  (MIT License, full text available in the source repository).
+                </p>
+              </div>
+              <div>
+                <p class="font-semibold">Service availability</p>
+                <p>
+                  The operator makes no guarantee of uninterrupted availability of this service.
+                  The service may be taken offline or modified at any time without prior notice.
+                  No data entered in the application should be considered permanently stored.
+                </p>
+              </div>
+              <div>
+                <p class="font-semibold">External links</p>
+                <p>
+                  Topic links entered by users point to external websites. The operator has no
+                  control over the content of those sites and accepts no liability for them.
+                </p>
+              </div>
+              <div>
+                <p class="font-semibold">Haftung für Inhalte (§ 7 Abs. 1 TMG)</p>
+                <p>
+                  Als Diensteanbieter sind wir gemäß § 7 Abs. 1 TMG für eigene Inhalte auf diesen
+                  Seiten nach den allgemeinen Gesetzen verantwortlich. Nach §§ 8 bis 10 TMG sind wir
+                  als Diensteanbieter jedoch nicht verpflichtet, übermittelte oder gespeicherte fremde
+                  Informationen zu überwachen. Haftungsansprüche, die sich auf Schäden materieller
+                  oder ideeller Art beziehen, welche durch die Nutzung dieser Software verursacht
+                  wurden, sind ausgeschlossen, sofern kein nachweislich vorsätzliches oder grob
+                  fahrlässiges Verschulden vorliegt.
+                </p>
+              </div>
+            </template>
+
+          </div>
         </div>
       </div>
     </Teleport>
@@ -167,7 +369,20 @@ const cardSets = ref({})
 const error = ref('')
 const showCreate = ref(false)
 const showJoin = ref(false)
-const nicknameError = ref(false)
+const nicknameError = ref('')
+const roomNameError = ref('')
+
+const legalOpen = ref(false)
+const legalSection = ref('impressum')
+const legalTabs = [
+  { key: 'impressum', label: 'Legal Notice' },
+  { key: 'privacy',   label: 'Privacy' },
+  { key: 'disclaimer', label: 'Disclaimer' },
+]
+function openLegal(section) {
+  legalSection.value = section
+  legalOpen.value = true
+}
 
 const parsedCustomCards = computed(() =>
   customCardInput.value
@@ -185,9 +400,24 @@ const canCreate = computed(() => {
 })
 const canJoin = computed(() => nickname.value.trim() && joinCode.value.trim())
 
+function validateNickname() {
+  if (!nickname.value.trim()) { nicknameError.value = 'Please enter a nickname first.'; return false }
+  if (nickname.value.includes(';')) { nicknameError.value = 'Nickname must not contain ";".'; return false }
+  return true
+}
+
+function openCreate() {
+  if (validateNickname()) showCreate.value = true
+}
+
+function openJoin() {
+  if (validateNickname()) showJoin.value = true
+}
+
 watch(showCreate, open => {
   if (!open) {
     newRoomName.value = ''
+    roomNameError.value = ''
     selectedCardSet.value = ''
     customCardInput.value = ''
     customCardError.value = ''
@@ -211,6 +441,11 @@ onMounted(async () => {
 async function createRoom() {
   error.value = ''
   customCardError.value = ''
+
+  if (newRoomName.value.includes(';')) {
+    roomNameError.value = 'Room name must not contain ";".'
+    return
+  }
 
   if (selectedCardSet.value === '__custom__') {
     if (parsedCustomCards.value.length < 2) {
