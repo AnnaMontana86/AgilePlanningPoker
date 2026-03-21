@@ -1,3 +1,7 @@
+// Composable for the participant mood / emoji reaction feature.
+// Responsible for managing the emoji picker state, toggling the selected
+// emoji (clicking the active emoji again clears it), and closing the
+// picker on outside clicks.
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 
 export function useEmoji(roomId, userStore, apiFetch, error) {
@@ -13,6 +17,7 @@ export function useEmoji(roomId, userStore, apiFetch, error) {
   }
 
   async function setEmoji(emoji) {
+    // Tapping the already-active emoji sends null — works as a toggle to clear it.
     const next = myEmoji.value === emoji ? null : emoji
     myEmoji.value = next
     try {
@@ -27,6 +32,7 @@ export function useEmoji(roomId, userStore, apiFetch, error) {
   }
 
   onMounted(() => {
+    // Capture phase (true) intercepts the click before child elements consume it.
     document.addEventListener('click', onClickOutsideMood, true)
   })
 

@@ -73,6 +73,9 @@
 </template>
 
 <script setup>
+// Collapsible sidebar for the shared room note.
+// Responsible for rendering the markdown note as sanitised HTML and
+// providing the owner with an inline edit interface.
 import { ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useRoomStore } from '../stores/room'

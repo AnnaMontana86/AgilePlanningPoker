@@ -351,6 +351,9 @@
 </template>
 
 <script setup>
+// Landing page for creating and joining rooms.
+// Responsible for the nickname form, create/join dialogs, card-set
+// selection (including custom sets), and the legal information modal.
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '../stores/user'

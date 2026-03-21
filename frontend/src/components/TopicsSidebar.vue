@@ -151,6 +151,9 @@
 </template>
 
 <script setup>
+// Collapsible sidebar listing the room's topics with owner controls.
+// Responsible for topic selection, reordering, editing, deletion, and
+// CSV export of estimates.
 import { ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useRoomStore } from '../stores/room'
@@ -205,6 +208,8 @@ function downloadCsv() {
     return [topic.short_name, topic.link ?? '', ...perUser]
   })
 
+  // Semicolon delimiter avoids conflicts with comma-containing card values;
+  // cells containing semicolons, quotes, or newlines are RFC 4180 quoted.
   const encodeCell = cell => {
     const s = String(cell)
     return (s.includes(';') || s.includes('"') || s.includes('\n'))

@@ -1,3 +1,6 @@
+// Composable for topic CRUD and selection within a room.
+// Responsible for managing add/edit form state and sending topic create,
+// reorder, delete, select, and patch requests to the API.
 import { ref } from 'vue'
 
 export function useTopics(roomId, roomStore, apiFetch, error) {
@@ -19,6 +22,7 @@ export function useTopics(roomId, roomStore, apiFetch, error) {
     } catch (e) { error.value = e.message }
   }
 
+  // dir is -1 (move up) or +1 (move down); sends the full reordered ID list.
   async function moveTopic(idx, dir) {
     const topics = [...roomStore.topics]
     const newIdx = idx + dir

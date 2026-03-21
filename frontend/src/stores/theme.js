@@ -1,3 +1,6 @@
+// Pinia store for the UI colour scheme.
+// Responsible for tracking and persisting the light/dark mode preference
+// to localStorage and exposing a toggle action.
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 

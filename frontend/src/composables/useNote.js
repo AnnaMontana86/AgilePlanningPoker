@@ -1,3 +1,6 @@
+// Composable for the shared room note feature.
+// Responsible for managing edit/display state and rendering the note
+// as sanitised HTML via marked + DOMPurify.
 import { ref, computed } from 'vue'
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'

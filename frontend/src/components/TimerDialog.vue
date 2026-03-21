@@ -47,6 +47,9 @@
 </template>
 
 <script setup>
+// Modal dialog for setting or stopping the room countdown timer.
+// Responsible for collecting a duration in seconds or minutes and
+// emitting start/stop events to the parent.
 import { ref } from 'vue'
 
 defineProps({

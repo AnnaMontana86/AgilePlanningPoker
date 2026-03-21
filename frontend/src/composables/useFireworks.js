@@ -1,3 +1,6 @@
+// Composable for the unanimous-vote fireworks celebration animation.
+// Responsible for watching for consensus after reveal and running a
+// canvas particle burst animation for a fixed duration.
 import { ref, computed, watch, onBeforeUnmount, nextTick } from 'vue'
 
 export function useFireworks(roomStore) {
@@ -63,6 +66,7 @@ export function useFireworks(roomStore) {
 
       for (let i = particles.length - 1; i >= 0; i--) {
         const p = particles[i]
+        // Apply gravity, air resistance, and fade to each particle each frame.
         p.x += p.vx
         p.y += p.vy
         p.vy += 0.08

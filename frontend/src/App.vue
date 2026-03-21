@@ -24,6 +24,9 @@
 </template>
 
 <script setup>
+// Root application shell.
+// Responsible for applying the dark-mode class to the document root and
+// rendering the global theme toggle on all pages except the room view.
 import { useRoute } from 'vue-router'
 import { useThemeStore } from './stores/theme'
 

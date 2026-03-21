@@ -1,3 +1,7 @@
+// Composable for the room countdown timer.
+// Responsible for converting a UTC end-time from the server into a live
+// seconds-remaining counter, formatting it as MM:SS, and sending
+// start/stop requests to the API.
 import { ref, computed, watch, onBeforeUnmount } from 'vue'
 
 export function useTimer(roomId, roomStore, userStore) {
@@ -13,6 +17,8 @@ export function useTimer(roomId, roomStore, userStore) {
 
   function startCountdownFrom(endsAt) {
     clearInterval(timerInterval)
+    // The server returns ISO strings without a trailing 'Z'; append it so
+    // Date parses the timestamp as UTC rather than local time.
     const utcStr = endsAt.endsWith('Z') ? endsAt : endsAt + 'Z'
     const remaining = Math.round((new Date(utcStr) - Date.now()) / 1000)
     if (remaining <= 0) { timerRemaining.value = 0; return }

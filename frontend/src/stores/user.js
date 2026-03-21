@@ -1,3 +1,6 @@
+// Pinia store for the local user's identity.
+// Responsible for persisting the nickname, participant ID, and auth token
+// to localStorage so the session survives page refreshes.
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 

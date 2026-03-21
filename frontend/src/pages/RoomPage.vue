@@ -369,6 +369,9 @@
 </template>
 
 <script setup>
+// Main planning poker session page.
+// Responsible for orchestrating room state, composables, voting, participant
+// management, and the join overlay shown to share-link visitors.
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useRoomStore } from '../stores/room'
@@ -397,6 +400,7 @@ const error = ref('')
 const roomId = route.params.roomId
 const timerDialog = ref(false)
 
+// Shared authenticated fetch helper — injects the user's token into every request body.
 async function apiFetch(path, method = 'POST', body = {}) {
   const res = await fetch(path, {
     method,
@@ -446,7 +450,8 @@ const { thinkingActive, volumeLevel, showVolume, onMusicWrapperEnter, onMusicWra
 const { fireworksCanvas, fireworksActive } =
   useFireworks(roomStore)
 
-// Voting
+// Locally tracked card selection; reset on new round or votes_reset so the
+// UI reflects server state correctly after a reconnect.
 const myVote = ref(null)
 
 watch(() => roomStore.currentRound?.number, () => { myVote.value = null })
@@ -454,6 +459,7 @@ watch(() => roomStore.votesResetCount, () => { myVote.value = null })
 
 async function vote(card) {
   error.value = ''
+  // Optimistic toggle: apply locally first, roll back on API error.
   const newCard = myVote.value === card ? null : card
   myVote.value = newCard
   try {

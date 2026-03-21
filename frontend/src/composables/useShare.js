@@ -1,3 +1,6 @@
+// Composable for room invite sharing.
+// Responsible for generating a QR code on hover, copying the room URL
+// to the clipboard, and showing a brief confirmation toast.
 import { ref, onBeforeUnmount } from 'vue'
 import QRCode from 'qrcode'
 

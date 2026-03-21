@@ -1,3 +1,7 @@
+// Composable for the "thinking time" ambient music feature.
+// Responsible for playing and stopping a looping audio track, syncing the
+// volume slider with server state, debouncing volume API calls, and
+// automatically stopping music once all active participants have voted.
 import { ref, computed, watch, onBeforeUnmount } from 'vue'
 
 export function useThinkingMusic(roomId, roomStore, userStore, isOwner, allVoted) {
@@ -41,6 +45,7 @@ export function useThinkingMusic(roomId, roomStore, userStore, isOwner, allVoted
   watch(volumeLevel, v => {
     if (thinkingAudio) thinkingAudio.volume = v
     if (isOwner.value && thinkingActive.value) {
+      // Debounce volume changes to avoid flooding the API while the slider is dragged.
       clearTimeout(volumeDebounceTimer)
       volumeDebounceTimer = setTimeout(() => {
         fetch(`/api/rooms/${roomId}/music`, {
@@ -61,6 +66,7 @@ export function useThinkingMusic(roomId, roomStore, userStore, isOwner, allVoted
     else stopThinkingAudio()
   })
 
+  // Auto-stop music when every active participant has submitted a vote (owner only).
   watch(allVoted, (voted) => {
     if (voted && thinkingActive.value && isOwner.value) {
       fetch(`/api/rooms/${roomId}/music`, {

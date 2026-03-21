@@ -1,3 +1,6 @@
+// Composable for the join-room flow triggered when a share link is opened.
+// Responsible for collecting the nickname, posting to the join endpoint,
+// persisting the session, and opening the SSE stream.
 import { ref } from 'vue'
 
 export function useJoinFlow(roomId, roomStore, userStore, router) {

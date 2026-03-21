@@ -36,6 +36,9 @@
 </template>
 
 <script setup>
+// Modal dialog for editing a topic's short name and optional link.
+// Responsible for initialising draft fields from the topic prop and
+// emitting a save event with trimmed values on confirm.
 import { ref, watch } from 'vue'
 
 const props = defineProps({

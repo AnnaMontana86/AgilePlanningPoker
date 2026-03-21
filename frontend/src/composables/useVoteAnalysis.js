@@ -1,3 +1,7 @@
+// Composable for post-reveal vote statistics.
+// Responsible for computing highest/lowest outlier participant IDs,
+// the numeric average, the most popular vote, and a compact estimate
+// frequency map for the topic list.
 import { computed } from 'vue'
 
 export function useVoteAnalysis(roomStore) {
@@ -37,6 +41,7 @@ export function useVoteAnalysis(roomStore) {
     return winners.join(' / ')
   })
 
+  // Groups identical estimate values so the topic list shows "5 (3x)" instead of "5, 5, 5".
   function compactEstimates(estimates) {
     const counts = {}
     for (const e of estimates) counts[e] = (counts[e] ?? 0) + 1

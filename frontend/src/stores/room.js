@@ -1,3 +1,7 @@
+// Pinia store for live room state.
+// Responsible for holding the canonical room snapshot, applying inbound
+// SSE events as partial mutations, and managing the EventSource lifecycle
+// including exponential-backoff reconnection on network errors.
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 
@@ -32,6 +36,8 @@ export const useRoomStore = defineStore('room', () => {
         room.value.participants[data.new_owner_id].is_owner = true
       }
     } else if (type === 'vote_cast') {
+      // vote_cast sets 'hidden', not the real card — actual values are only
+      // known after the 'cards_revealed' event to prevent peeking.
       const p = room.value.participants[data.participant_id]
       if (p) p.vote = 'hidden'
     } else if (type === 'vote_retracted') {
@@ -78,6 +84,7 @@ export const useRoomStore = defineStore('room', () => {
       room.value.participants = Object.fromEntries(
         Object.entries(room.value.participants).map(([id, p]) => [id, { ...p, vote: null }])
       )
+      // Increment so RoomPage watchers can reset myVote without depending on round number.
       votesResetCount.value++
     } else if (type === 'participant_suspended') {
       const p = room.value.participants[data.participant_id]
@@ -118,6 +125,7 @@ export const useRoomStore = defineStore('room', () => {
             const res = await fetch(`/api/rooms/${roomId}`)
             if (res.ok) setRoom(await res.json())
           } catch {}
+          // Double the delay for the next failure, capped at 30 s.
           retryDelay = Math.min(retryDelay * 2, 30000)
           connect()
         }, retryDelay)

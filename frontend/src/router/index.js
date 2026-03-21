@@ -1,3 +1,5 @@
+// Application router.
+// Responsible for mapping URL paths to page components using HTML5 history mode.
 import { createRouter, createWebHistory } from 'vue-router'
 
 const routes = [
