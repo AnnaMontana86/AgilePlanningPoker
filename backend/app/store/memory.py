@@ -8,6 +8,10 @@ ROOM_TTL_HOURS = float(os.getenv("ROOM_TTL_HOURS", "3"))
 EXPIRY_CHECK_INTERVAL = int(os.getenv("EXPIRY_CHECK_INTERVAL_SECONDS", "60"))
 
 
+# The application's runtime room registry.
+# Responsible for storing, retrieving, and expiring Room objects in
+# process memory, and for running the background TTL sweep that evicts
+# rooms whose last_activity_at has passed the configured threshold.
 class InMemoryStore:
     def __init__(self) -> None:
         self._rooms: dict[str, Room] = {}

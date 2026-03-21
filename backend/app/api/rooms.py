@@ -19,6 +19,9 @@ router = APIRouter()
 # Request/Response schemas
 # ---------------------------------------------------------------------------
 
+# Request body for creating a new planning poker room.
+# Responsible for carrying the room name, the owner's nickname, and
+# the chosen card set (either a predefined name or a custom definition).
 class CreateRoomRequest(BaseModel):
     name: str
     card_set_name: str | None = None
@@ -26,56 +29,88 @@ class CreateRoomRequest(BaseModel):
     owner_nickname: str
 
 
+# Request body for joining an existing room.
+# Responsible for carrying the nickname the participant wants to use.
 class JoinRoomRequest(BaseModel):
     nickname: str
 
 
+# Request body for casting or retracting a vote.
+# Responsible for carrying the participant's identity token and the
+# selected card value (None to retract an existing vote).
 class VoteRequest(BaseModel):
     participant_id: str
     token: str
     card: str | None  # None = retract vote
 
 
+# Request body for owner-only actions that require no extra data.
+# Responsible for carrying the owner's identity token to authorise the
+# action (used for reveal, new-round, retry, and stop-timer).
 class OwnerActionRequest(BaseModel):
     token: str
 
 
+# Request body for kicking a participant or deleting a topic.
+# Responsible for carrying the owner's identity token to authorise
+# the destructive action.
 class KickRequest(BaseModel):
     token: str
 
 
+# Request body for voluntarily leaving a room.
+# Responsible for carrying the leaving participant's ID and token so
+# the server can verify identity and transfer ownership if needed.
 class LeaveRequest(BaseModel):
     participant_id: str
     token: str
 
 
+# Request body for setting or clearing a participant's emoji reaction.
+# Responsible for carrying the participant's identity token and the
+# chosen emoji (None to clear the current reaction).
 class EmojiRequest(BaseModel):
     participant_id: str
     token: str
     emoji: str | None  # None = clear emoji
 
 
+# Request body for adding a new topic to the room's backlog.
+# Responsible for carrying the owner token, the topic's short name,
+# and an optional reference link.
 class AddTopicRequest(BaseModel):
     token: str
     short_name: str
     link: str = ""
 
 
+# Request body for reordering the room's topic list.
+# Responsible for carrying the owner token and the complete ordered
+# list of topic IDs that defines the new sequence.
 class ReorderTopicsRequest(BaseModel):
     token: str
     topic_ids: list[str]
 
 
+# Request body for editing an existing topic's metadata.
+# Responsible for carrying the owner token, the updated short name,
+# and the updated reference link.
 class EditTopicRequest(BaseModel):
     token: str
     short_name: str
     link: str = ""
 
 
+# Request body for switching the room's active topic.
+# Responsible for carrying the owner token that authorises the
+# topic selection.
 class SelectTopicRequest(BaseModel):
     token: str
 
 
+# Request body for updating the room's shared note.
+# Responsible for carrying the owner token and the new note content
+# (None to clear the note).
 class NoteRequest(BaseModel):
     token: str
     note: str | None = None  # None = clear note
@@ -391,11 +426,17 @@ async def set_emoji(room_id: str, req: EmojiRequest):
     return {"ok": True}
 
 
+# Request body for starting the room countdown timer.
+# Responsible for carrying the owner token and the requested timer
+# duration in seconds.
 class TimerRequest(BaseModel):
     token: str
     duration_seconds: int
 
 
+# Request body for controlling the room's ambient music.
+# Responsible for carrying the owner token, the desired play/pause
+# state, and an optional volume level.
 class MusicRequest(BaseModel):
     token: str
     playing: bool

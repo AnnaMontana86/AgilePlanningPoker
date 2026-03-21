@@ -3,6 +3,10 @@ import json
 from collections import defaultdict
 
 
+# The real-time event fan-out hub.
+# Responsible for managing per-room asyncio queues for SSE subscribers
+# and broadcasting JSON-serialised event payloads to every connected client
+# in a room, dropping queues that are full (slow consumers).
 class Broadcaster:
     def __init__(self) -> None:
         self._queues: dict[str, list[asyncio.Queue]] = defaultdict(list)

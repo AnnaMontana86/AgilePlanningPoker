@@ -9,6 +9,9 @@ PREDEFINED_CARD_SETS: dict[str, list[str]] = {
 }
 
 
+# The definition of a set of voting cards for a room.
+# Responsible for holding the card set's name and the ordered list
+# of valid card values that participants may vote with.
 class CardSet(BaseModel):
     name: str = Field(..., min_length=1, max_length=50)
     cards: list[str] = Field(..., min_length=2, max_length=20)

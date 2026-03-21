@@ -3,6 +3,9 @@ from pydantic import BaseModel, Field
 import uuid
 
 
+# A single voting round within a planning poker room.
+# Responsible for tracking whether cards have been revealed and
+# recording when the round started and when it was revealed.
 class Round(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     number: int = 1
