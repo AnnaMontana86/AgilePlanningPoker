@@ -40,7 +40,6 @@ export function useTopics(roomId, roomStore, apiFetch, error) {
   async function selectTopic(topicId) {
     try {
       await apiFetch(`/api/rooms/${roomId}/topics/${topicId}/select`)
-      if (!roomStore.isRevealed) roomStore.applyEvent({ type: 'votes_reset', data: {} })
     } catch (e) { error.value = e.message }
   }
 
@@ -55,7 +54,6 @@ export function useTopics(roomId, roomStore, apiFetch, error) {
         link: link?.trim() ?? '',
       })
       editingTopic.value = null
-      if (!roomStore.isRevealed) roomStore.applyEvent({ type: 'votes_reset', data: {} })
     } catch (e) { error.value = e.message }
   }
 

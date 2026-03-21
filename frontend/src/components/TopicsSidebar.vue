@@ -6,19 +6,8 @@
       topicsOpen ? 'lg:w-80 xl:w-96' : 'lg:w-10',
     ]"
   >
-    <!-- Header row: label + download + toggle -->
+    <!-- Header row: toggle + label + download -->
     <div class="flex items-center gap-2 px-4 py-4">
-      <h3 v-if="topicsOpen" class="flex-1 text-sm font-medium text-gray-500 uppercase tracking-wide">Topics</h3>
-      <button
-        v-if="topicsOpen && roomStore.topics.length > 0"
-        @click="downloadCsv"
-        title="Download CSV"
-        class="rounded p-1 text-gray-400 hover:text-indigo-500 transition-colors"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-          <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
-        </svg>
-      </button>
       <button
         @click="topicsOpen = !topicsOpen"
         :title="topicsOpen ? 'Hide topics' : 'Show topics'"
@@ -30,6 +19,17 @@
         </svg>
         <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
           <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
+        </svg>
+      </button>
+      <h3 v-if="topicsOpen" class="flex-1 text-sm font-medium text-gray-500 uppercase tracking-wide">Topics</h3>
+      <button
+        v-if="topicsOpen && roomStore.topics.length > 0"
+        @click="downloadCsv"
+        title="Download CSV"
+        class="rounded p-1 text-gray-400 hover:text-indigo-500 transition-colors"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
         </svg>
       </button>
     </div>

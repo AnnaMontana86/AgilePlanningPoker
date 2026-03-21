@@ -76,7 +76,7 @@
           <!-- Dropdown -->
           <div
             v-if="moodOpen"
-            class="absolute left-0 top-full mt-1.5 z-20 flex gap-1 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg px-2 py-1.5"
+            class="absolute left-0 top-full mt-1.5 z-20 flex flex-col sm:flex-row gap-1 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg px-2 py-1.5"
           >
             <button
               v-for="e in EMOJIS"

@@ -94,20 +94,44 @@ export const useRoomStore = defineStore('room', () => {
     }
   }
 
+  let retryDelay = 2000
+  let retryTimeout = null
+
   function connectSSE(roomId) {
     disconnectSSE()
-    const es = new EventSource(`/api/rooms/${roomId}/events`)
-    es.onmessage = (e) => {
-      try {
-        applyEvent(JSON.parse(e.data))
-      } catch {
-        // malformed event — ignore
+
+    function connect() {
+      const es = new EventSource(`/api/rooms/${roomId}/events`)
+
+      es.onmessage = (e) => {
+        try { applyEvent(JSON.parse(e.data)) } catch {}
       }
+
+      es.onopen = () => {
+        retryDelay = 2000
+      }
+
+      es.onerror = () => {
+        es.close()
+        retryTimeout = setTimeout(async () => {
+          try {
+            const res = await fetch(`/api/rooms/${roomId}`)
+            if (res.ok) setRoom(await res.json())
+          } catch {}
+          retryDelay = Math.min(retryDelay * 2, 30000)
+          connect()
+        }, retryDelay)
+      }
+
+      eventSource.value = es
     }
-    eventSource.value = es
+
+    connect()
   }
 
   function disconnectSSE() {
+    clearTimeout(retryTimeout)
+    retryTimeout = null
     eventSource.value?.close()
     eventSource.value = null
   }
