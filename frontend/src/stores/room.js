@@ -30,7 +30,7 @@ export const useRoomStore = defineStore('room', () => {
 
     if (type === 'participant_joined') {
       room.value.participants[data.participant.id] = data.participant
-    } else if (type === 'participant_left' || type === 'participant_kicked') {
+    } else if (type === 'participant_left') {
       delete room.value.participants[data.participant_id]
       if (data.new_owner_id && room.value.participants[data.new_owner_id]) {
         room.value.participants[data.new_owner_id].is_owner = true

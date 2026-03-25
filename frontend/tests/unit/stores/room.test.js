@@ -30,13 +30,6 @@ describe('useRoomStore', () => {
     expect(store.participants).toHaveLength(3)
   })
 
-  it('participant_kicked event removes participant', () => {
-    const store = useRoomStore()
-    store.setRoom(structuredClone(mockRoom))
-    store.applyEvent({ type: 'participant_kicked', data: { participant_id: 'p2' } })
-    expect(store.participants).toHaveLength(1)
-  })
-
   it('participant_left event removes participant', () => {
     const store = useRoomStore()
     store.setRoom(structuredClone(mockRoom))

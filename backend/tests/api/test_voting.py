@@ -73,21 +73,6 @@ class TestNewRound:
         assert room["participants"][pid]["vote"] is None
 
 
-class TestKick:
-    async def test_owner_can_kick_participant(self, client, room_with_owner):
-        room_id, token, _ = room_with_owner
-        join = await client.post(f"/api/rooms/{room_id}/join", json={"nickname": "Mallory"})
-        victim_id = join.json()["participant_id"]
-        resp = await client.request("DELETE", f"/api/rooms/{room_id}/participants/{victim_id}",
-                                    json={"token": token})
-        assert resp.status_code == 200
-
-    async def test_owner_cannot_kick_themselves(self, client, room_with_owner):
-        room_id, token, pid = room_with_owner
-        resp = await client.request("DELETE", f"/api/rooms/{room_id}/participants/{pid}",
-                                    json={"token": token})
-        assert resp.status_code == 400
-
 
 class TestLeaveRoom:
     async def test_non_owner_can_leave(self, client, room_with_owner):

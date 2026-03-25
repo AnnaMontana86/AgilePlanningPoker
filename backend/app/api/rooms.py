@@ -51,7 +51,7 @@ class OwnerActionRequest(BaseModel):
     token: str
 
 
-# Request body for kicking a participant or deleting a topic.
+# Request body for deleting a topic.
 # Responsible for carrying the owner's identity token to authorise
 # the destructive action.
 class KickRequest(BaseModel):
@@ -390,21 +390,6 @@ async def suspend_participant(room_id: str, participant_id: str, req: OwnerActio
     await broadcaster.broadcast(room_id, "participant_suspended", {"participant_id": participant_id})
     return {"ok": True}
 
-
-@router.delete("/rooms/{room_id}/participants/{participant_id}")
-async def kick_participant(room_id: str, participant_id: str, req: KickRequest):
-    room = _get_room_or_404(room_id)
-    owner = next((p for p in room.participants.values() if p.is_owner), None)
-    if not owner or req.token != owner.id:
-        raise HTTPException(status_code=403, detail="Only the room owner can kick participants")
-    if participant_id not in room.participants:
-        raise HTTPException(status_code=404, detail="Participant not found")
-    if room.participants[participant_id].is_owner:
-        raise HTTPException(status_code=400, detail="Cannot kick the room owner")
-    del room.participants[participant_id]
-    store.save_room(room)
-    await broadcaster.broadcast(room_id, "participant_kicked", {"participant_id": participant_id})
-    return {"ok": True}
 
 
 @router.post("/rooms/{room_id}/emoji")
