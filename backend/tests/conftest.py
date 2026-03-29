@@ -1,6 +1,7 @@
 import pytest
 from httpx import AsyncClient, ASGITransport
 
+from app.limiter import limiter
 from app.main import app
 from app.store.memory import store
 
@@ -11,6 +12,7 @@ def clear_store():
     store._rooms.clear()
     yield
     store._rooms.clear()
+    limiter._storage.reset()  # clear per-IP rate-limit counters
 
 
 @pytest.fixture

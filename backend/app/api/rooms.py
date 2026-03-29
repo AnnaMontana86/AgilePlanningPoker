@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 import asyncio
 from datetime import timedelta
 
@@ -10,6 +10,7 @@ from app.models.room import Room, Topic
 from app.models.round import Round
 from app.store.memory import store
 from app.events.broadcaster import broadcaster
+from app.limiter import limiter
 
 router = APIRouter()
 
@@ -128,7 +129,31 @@ class SelectTopicRequest(BaseModel):
 # (None to clear the note).
 class NoteRequest(BaseModel):
     token: str
-    note: str | None = None  # None = clear note
+    note: str | None = Field(None, max_length=3000)
+
+    @field_validator('note')
+    @classmethod
+    def no_script_tags(cls, v: str | None) -> str | None:
+        if v and '<script' in v.lower():
+            raise ValueError('note must not contain script code')
+        return v
+
+
+# Request body for starting the room countdown timer.
+# Responsible for carrying the owner token and the requested timer
+# duration in seconds.
+class TimerRequest(BaseModel):
+    token: str
+    duration_seconds: int = Field(..., ge=1, le=10_800)  # 1 s – 3 h
+
+
+# Request body for controlling the room's ambient music.
+# Responsible for carrying the owner token, the desired play/pause
+# state, and an optional volume level.
+class MusicRequest(BaseModel):
+    token: str
+    playing: bool
+    volume: float | None = None
 
 
 ALLOWED_EMOJIS = {"🤔", "😄", "😢", "❤️", "☕", "🍺"}
@@ -161,12 +186,14 @@ def _resolve_card_set(req: CreateRoomRequest) -> CardSet:
 # ---------------------------------------------------------------------------
 
 @router.get("/card-sets")
-async def list_card_sets():
+@limiter.limit("120/minute")
+async def list_card_sets(request: Request):
     return {name: cards for name, cards in PREDEFINED_CARD_SETS.items()}
 
 
 @router.post("/rooms", status_code=201)
-async def create_room(req: CreateRoomRequest):
+@limiter.limit("30/minute")
+async def create_room(request: Request, req: CreateRoomRequest):
     card_set = _resolve_card_set(req)
     owner = Participant(nickname=req.owner_nickname, is_owner=True)
     room = Room(name=req.name, card_set=card_set)
@@ -176,13 +203,15 @@ async def create_room(req: CreateRoomRequest):
 
 
 @router.get("/rooms/{room_id}")
-async def get_room(room_id: str):
+@limiter.limit("120/minute")
+async def get_room(request: Request, room_id: str):
     room = _get_room_or_404(room_id)
     return room
 
 
 @router.post("/rooms/{room_id}/join", status_code=201)
-async def join_room(room_id: str, req: JoinRoomRequest):
+@limiter.limit("30/minute")
+async def join_room(request: Request, room_id: str, req: JoinRoomRequest):
     room = _get_room_or_404(room_id)
     existing_nicknames = {p.nickname for p in room.participants.values()}
     nickname = req.nickname
@@ -196,7 +225,8 @@ async def join_room(room_id: str, req: JoinRoomRequest):
 
 
 @router.post("/rooms/{room_id}/vote")
-async def vote(room_id: str, req: VoteRequest):
+@limiter.limit("60/minute")
+async def vote(request: Request, room_id: str, req: VoteRequest):
     room = _get_room_or_404(room_id)
     if room.current_round.revealed:
         raise HTTPException(status_code=409, detail="Round already revealed")
@@ -220,7 +250,8 @@ async def vote(room_id: str, req: VoteRequest):
 
 
 @router.post("/rooms/{room_id}/reveal")
-async def reveal(room_id: str, req: OwnerActionRequest):
+@limiter.limit("60/minute")
+async def reveal(request: Request, room_id: str, req: OwnerActionRequest):
     room = _get_room_or_404(room_id)
     owner = next((p for p in room.participants.values() if p.is_owner), None)
     if not owner or req.token != owner.id:
@@ -235,7 +266,8 @@ async def reveal(room_id: str, req: OwnerActionRequest):
 
 
 @router.post("/rooms/{room_id}/new-round")
-async def new_round(room_id: str, req: OwnerActionRequest):
+@limiter.limit("60/minute")
+async def new_round(request: Request, room_id: str, req: OwnerActionRequest):
     room = _get_room_or_404(room_id)
     owner = next((p for p in room.participants.values() if p.is_owner), None)
     if not owner or req.token != owner.id:
@@ -268,7 +300,8 @@ async def new_round(room_id: str, req: OwnerActionRequest):
 
 
 @router.post("/rooms/{room_id}/retry")
-async def retry_round(room_id: str, req: OwnerActionRequest):
+@limiter.limit("60/minute")
+async def retry_round(request: Request, room_id: str, req: OwnerActionRequest):
     room = _get_room_or_404(room_id)
     owner = next((p for p in room.participants.values() if p.is_owner), None)
     if not owner or req.token != owner.id:
@@ -291,7 +324,8 @@ async def retry_round(room_id: str, req: OwnerActionRequest):
 
 
 @router.post("/rooms/{room_id}/topics", status_code=201)
-async def add_topic(room_id: str, req: AddTopicRequest):
+@limiter.limit("60/minute")
+async def add_topic(request: Request, room_id: str, req: AddTopicRequest):
     room = _get_room_or_404(room_id)
     owner = next((p for p in room.participants.values() if p.is_owner), None)
     if not owner or req.token != owner.id:
@@ -306,7 +340,8 @@ async def add_topic(room_id: str, req: AddTopicRequest):
 
 
 @router.put("/rooms/{room_id}/topics")
-async def reorder_topics(room_id: str, req: ReorderTopicsRequest):
+@limiter.limit("60/minute")
+async def reorder_topics(request: Request, room_id: str, req: ReorderTopicsRequest):
     room = _get_room_or_404(room_id)
     owner = next((p for p in room.participants.values() if p.is_owner), None)
     if not owner or req.token != owner.id:
@@ -321,7 +356,8 @@ async def reorder_topics(room_id: str, req: ReorderTopicsRequest):
 
 
 @router.patch("/rooms/{room_id}/topics/{topic_id}")
-async def edit_topic(room_id: str, topic_id: str, req: EditTopicRequest):
+@limiter.limit("60/minute")
+async def edit_topic(request: Request, room_id: str, topic_id: str, req: EditTopicRequest):
     room = _get_room_or_404(room_id)
     owner = next((p for p in room.participants.values() if p.is_owner), None)
     if not owner or req.token != owner.id:
@@ -348,7 +384,8 @@ async def edit_topic(room_id: str, topic_id: str, req: EditTopicRequest):
 
 
 @router.post("/rooms/{room_id}/topics/{topic_id}/select")
-async def select_topic(room_id: str, topic_id: str, req: SelectTopicRequest):
+@limiter.limit("60/minute")
+async def select_topic(request: Request, room_id: str, topic_id: str, req: SelectTopicRequest):
     room = _get_room_or_404(room_id)
     owner = next((p for p in room.participants.values() if p.is_owner), None)
     if not owner or req.token != owner.id:
@@ -369,7 +406,8 @@ async def select_topic(room_id: str, topic_id: str, req: SelectTopicRequest):
 
 
 @router.delete("/rooms/{room_id}/topics/{topic_id}")
-async def delete_topic(room_id: str, topic_id: str, req: KickRequest):
+@limiter.limit("60/minute")
+async def delete_topic(request: Request, room_id: str, topic_id: str, req: KickRequest):
     room = _get_room_or_404(room_id)
     owner = next((p for p in room.participants.values() if p.is_owner), None)
     if not owner or req.token != owner.id:
@@ -390,7 +428,8 @@ async def delete_topic(room_id: str, topic_id: str, req: KickRequest):
 
 
 @router.post("/rooms/{room_id}/participants/{participant_id}/suspend")
-async def suspend_participant(room_id: str, participant_id: str, req: OwnerActionRequest):
+@limiter.limit("30/minute")
+async def suspend_participant(request: Request, room_id: str, participant_id: str, req: OwnerActionRequest):
     room = _get_room_or_404(room_id)
     owner = next((p for p in room.participants.values() if p.is_owner), None)
     if not owner or req.token != owner.id:
@@ -407,9 +446,9 @@ async def suspend_participant(room_id: str, participant_id: str, req: OwnerActio
     return {"ok": True}
 
 
-
 @router.post("/rooms/{room_id}/emoji")
-async def set_emoji(room_id: str, req: EmojiRequest):
+@limiter.limit("30/minute")
+async def set_emoji(request: Request, room_id: str, req: EmojiRequest):
     room = _get_room_or_404(room_id)
     participant = room.participants.get(req.participant_id)
     if not participant:
@@ -427,25 +466,9 @@ async def set_emoji(room_id: str, req: EmojiRequest):
     return {"ok": True}
 
 
-# Request body for starting the room countdown timer.
-# Responsible for carrying the owner token and the requested timer
-# duration in seconds.
-class TimerRequest(BaseModel):
-    token: str
-    duration_seconds: int
-
-
-# Request body for controlling the room's ambient music.
-# Responsible for carrying the owner token, the desired play/pause
-# state, and an optional volume level.
-class MusicRequest(BaseModel):
-    token: str
-    playing: bool
-    volume: float | None = None
-
-
 @router.post("/rooms/{room_id}/music")
-async def set_music(room_id: str, req: MusicRequest):
+@limiter.limit("30/minute")
+async def set_music(request: Request, room_id: str, req: MusicRequest):
     room = _get_room_or_404(room_id)
     owner = next((p for p in room.participants.values() if p.is_owner), None)
     if not owner or req.token != owner.id:
@@ -459,7 +482,8 @@ async def set_music(room_id: str, req: MusicRequest):
 
 
 @router.post("/rooms/{room_id}/timer")
-async def start_timer(room_id: str, req: TimerRequest):
+@limiter.limit("30/minute")
+async def start_timer(request: Request, room_id: str, req: TimerRequest):
     room = _get_room_or_404(room_id)
     owner = next((p for p in room.participants.values() if p.is_owner), None)
     if not owner or req.token != owner.id:
@@ -475,7 +499,8 @@ async def start_timer(room_id: str, req: TimerRequest):
 
 
 @router.delete("/rooms/{room_id}/timer")
-async def stop_timer(room_id: str, req: OwnerActionRequest):
+@limiter.limit("30/minute")
+async def stop_timer(request: Request, room_id: str, req: OwnerActionRequest):
     room = _get_room_or_404(room_id)
     owner = next((p for p in room.participants.values() if p.is_owner), None)
     if not owner or req.token != owner.id:
@@ -487,7 +512,8 @@ async def stop_timer(room_id: str, req: OwnerActionRequest):
 
 
 @router.post("/rooms/{room_id}/leave")
-async def leave_room(room_id: str, req: LeaveRequest):
+@limiter.limit("30/minute")
+async def leave_room(request: Request, room_id: str, req: LeaveRequest):
     room = _get_room_or_404(room_id)
     participant = room.participants.get(req.participant_id)
     if not participant or req.token != participant.id:
@@ -514,7 +540,8 @@ async def leave_room(room_id: str, req: LeaveRequest):
 
 
 @router.patch("/rooms/{room_id}/note")
-async def update_note(room_id: str, req: NoteRequest):
+@limiter.limit("30/minute")
+async def update_note(request: Request, room_id: str, req: NoteRequest):
     room = _get_room_or_404(room_id)
     owner = next((p for p in room.participants.values() if p.is_owner), None)
     if not owner or req.token != owner.id:
@@ -527,7 +554,8 @@ async def update_note(room_id: str, req: NoteRequest):
 
 
 @router.get("/rooms/{room_id}/events")
-async def room_events(room_id: str, request: Request):
+@limiter.limit("30/minute")
+async def room_events(request: Request, room_id: str):
     _get_room_or_404(room_id)
 
     async def event_stream():
