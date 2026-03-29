@@ -1,56 +1,67 @@
 import pytest
 
+T1 = {"key": "T-1", "headline": "Topic 1"}
+T2 = {"key": "T-2", "headline": "Topic 2"}
+
 
 class TestAddTopic:
     async def test_owner_can_add_topic(self, client, room_with_owner):
         room_id, token, _ = room_with_owner
         resp = await client.post(f"/api/rooms/{room_id}/topics", json={
-            "token": token, "short_name": "Sprint 1", "link": "https://example.com",
+            "token": token, "key": "PROJ-1", "headline": "Sprint 1", "link": "https://example.com",
         })
         assert resp.status_code == 201
-        assert resp.json()["topic"]["short_name"] == "Sprint 1"
+        assert resp.json()["topic"]["key"] == "PROJ-1"
+        assert resp.json()["topic"]["headline"] == "Sprint 1"
 
     async def test_non_owner_cannot_add_topic(self, client, room_with_owner):
         room_id, _, _ = room_with_owner
         join = await client.post(f"/api/rooms/{room_id}/join", json={"nickname": "Bob"})
         bob_token = join.json()["token"]
         resp = await client.post(f"/api/rooms/{room_id}/topics", json={
-            "token": bob_token, "short_name": "Bad topic",
+            "token": bob_token, **T1,
         })
         assert resp.status_code == 403
 
     async def test_topic_appears_in_room(self, client, room_with_owner):
         room_id, token, _ = room_with_owner
-        await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, "short_name": "T1"})
-        await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, "short_name": "T2"})
+        await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, **T1})
+        await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, **T2})
         room = (await client.get(f"/api/rooms/{room_id}")).json()
         assert len(room["topics"]) == 2
-        assert room["topics"][0]["short_name"] == "T1"
+        assert room["topics"][0]["key"] == "T-1"
 
-    async def test_duplicate_short_name_is_rejected(self, client, room_with_owner):
+    async def test_duplicate_key_is_rejected(self, client, room_with_owner):
         room_id, token, _ = room_with_owner
-        await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, "short_name": "T1"})
-        resp = await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, "short_name": "T1"})
+        await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, **T1})
+        resp = await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, **T1})
         assert resp.status_code == 409
+
+    async def test_javascript_link_is_rejected(self, client, room_with_owner):
+        room_id, token, _ = room_with_owner
+        resp = await client.post(f"/api/rooms/{room_id}/topics", json={
+            "token": token, **T1, "link": "javascript:alert(1)",
+        })
+        assert resp.status_code == 422
 
 
 class TestReorderTopics:
     async def test_owner_can_reorder_topics(self, client, room_with_owner):
         room_id, token, _ = room_with_owner
-        r1 = await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, "short_name": "T1"})
-        r2 = await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, "short_name": "T2"})
+        r1 = await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, **T1})
+        r2 = await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, **T2})
         id1 = r1.json()["topic"]["id"]
         id2 = r2.json()["topic"]["id"]
         resp = await client.put(f"/api/rooms/{room_id}/topics", json={"token": token, "topic_ids": [id2, id1]})
         assert resp.status_code == 200
         room = (await client.get(f"/api/rooms/{room_id}")).json()
-        assert room["topics"][0]["short_name"] == "T2"
+        assert room["topics"][0]["key"] == "T-2"
 
 
 class TestDeleteTopic:
     async def test_owner_can_delete_topic(self, client, room_with_owner):
         room_id, token, _ = room_with_owner
-        r = await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, "short_name": "T1"})
+        r = await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, **T1})
         topic_id = r.json()["topic"]["id"]
         resp = await client.request("DELETE", f"/api/rooms/{room_id}/topics/{topic_id}", json={"token": token})
         assert resp.status_code == 200
@@ -61,68 +72,78 @@ class TestDeleteTopic:
 class TestEditTopic:
     async def test_owner_can_edit_topic(self, client, room_with_owner):
         room_id, token, _ = room_with_owner
-        r = await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, "short_name": "Old Name"})
+        r = await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, "key": "OLD-1", "headline": "Old Headline"})
         topic_id = r.json()["topic"]["id"]
         resp = await client.patch(f"/api/rooms/{room_id}/topics/{topic_id}", json={
-            "token": token, "short_name": "New Name", "link": "https://example.com",
+            "token": token, "key": "NEW-1", "headline": "New Headline", "link": "https://example.com",
         })
         assert resp.status_code == 200
-        assert resp.json()["topic"]["short_name"] == "New Name"
+        assert resp.json()["topic"]["key"] == "NEW-1"
+        assert resp.json()["topic"]["headline"] == "New Headline"
         assert resp.json()["topic"]["link"] == "https://example.com"
 
     async def test_non_owner_cannot_edit_topic(self, client, room_with_owner):
         room_id, token, _ = room_with_owner
-        r = await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, "short_name": "T1"})
+        r = await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, **T1})
         topic_id = r.json()["topic"]["id"]
         join = await client.post(f"/api/rooms/{room_id}/join", json={"nickname": "Bob"})
         bob_token = join.json()["token"]
         resp = await client.patch(f"/api/rooms/{room_id}/topics/{topic_id}", json={
-            "token": bob_token, "short_name": "Hacked",
+            "token": bob_token, "key": "HAX-1", "headline": "Hacked",
         })
         assert resp.status_code == 403
 
-    async def test_duplicate_short_name_is_rejected(self, client, room_with_owner):
+    async def test_duplicate_key_is_rejected(self, client, room_with_owner):
         room_id, token, _ = room_with_owner
-        await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, "short_name": "T1"})
-        r2 = await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, "short_name": "T2"})
+        await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, **T1})
+        r2 = await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, **T2})
         topic2_id = r2.json()["topic"]["id"]
-        resp = await client.patch(f"/api/rooms/{room_id}/topics/{topic2_id}", json={"token": token, "short_name": "T1"})
+        resp = await client.patch(f"/api/rooms/{room_id}/topics/{topic2_id}", json={"token": token, **T1})
         assert resp.status_code == 409
 
-    async def test_same_name_is_allowed(self, client, room_with_owner):
+    async def test_javascript_link_is_rejected(self, client, room_with_owner):
         room_id, token, _ = room_with_owner
-        r = await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, "short_name": "T1"})
+        r = await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, **T1})
         topic_id = r.json()["topic"]["id"]
-        resp = await client.patch(f"/api/rooms/{room_id}/topics/{topic_id}", json={"token": token, "short_name": "T1"})
+        resp = await client.patch(f"/api/rooms/{room_id}/topics/{topic_id}", json={
+            "token": token, **T1, "link": "javascript:alert(1)",
+        })
+        assert resp.status_code == 422
+
+    async def test_same_key_is_allowed(self, client, room_with_owner):
+        room_id, token, _ = room_with_owner
+        r = await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, **T1})
+        topic_id = r.json()["topic"]["id"]
+        resp = await client.patch(f"/api/rooms/{room_id}/topics/{topic_id}", json={"token": token, **T1})
         assert resp.status_code == 200
 
     async def test_before_reveal_resets_votes(self, client, room_with_owner):
         room_id, token, pid = room_with_owner
-        r = await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, "short_name": "T1"})
+        r = await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, **T1})
         topic_id = r.json()["topic"]["id"]
         await client.post(f"/api/rooms/{room_id}/vote", json={"participant_id": pid, "token": token, "card": "5"})
-        await client.patch(f"/api/rooms/{room_id}/topics/{topic_id}", json={"token": token, "short_name": "T1 edited"})
+        await client.patch(f"/api/rooms/{room_id}/topics/{topic_id}", json={"token": token, "key": "T-1", "headline": "Edited"})
         room = (await client.get(f"/api/rooms/{room_id}")).json()
         assert room["participants"][pid]["vote"] is None
 
     async def test_after_reveal_preserves_votes(self, client, room_with_owner):
         room_id, token, pid = room_with_owner
-        r = await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, "short_name": "T1"})
+        r = await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, **T1})
         topic_id = r.json()["topic"]["id"]
         await client.post(f"/api/rooms/{room_id}/vote", json={"participant_id": pid, "token": token, "card": "5"})
         await client.post(f"/api/rooms/{room_id}/reveal", json={"token": token})
-        await client.patch(f"/api/rooms/{room_id}/topics/{topic_id}", json={"token": token, "short_name": "T1 edited"})
+        await client.patch(f"/api/rooms/{room_id}/topics/{topic_id}", json={"token": token, "key": "T-1", "headline": "Edited"})
         room = (await client.get(f"/api/rooms/{room_id}")).json()
         assert room["participants"][pid]["vote"] == "5"
 
     async def test_clears_saved_estimates(self, client, room_with_owner):
         room_id, token, pid = room_with_owner
-        r = await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, "short_name": "T1"})
+        r = await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, **T1})
         topic_id = r.json()["topic"]["id"]
         await client.post(f"/api/rooms/{room_id}/vote", json={"participant_id": pid, "token": token, "card": "5"})
         await client.post(f"/api/rooms/{room_id}/reveal", json={"token": token})
         await client.post(f"/api/rooms/{room_id}/new-round", json={"token": token})
-        await client.patch(f"/api/rooms/{room_id}/topics/{topic_id}", json={"token": token, "short_name": "T1 edited"})
+        await client.patch(f"/api/rooms/{room_id}/topics/{topic_id}", json={"token": token, "key": "T-1", "headline": "Edited"})
         room = (await client.get(f"/api/rooms/{room_id}")).json()
         assert room["topics"][0]["estimates"] is None
 
@@ -130,8 +151,8 @@ class TestEditTopic:
 class TestSelectTopic:
     async def test_owner_can_select_topic(self, client, room_with_owner):
         room_id, token, _ = room_with_owner
-        await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, "short_name": "T1"})
-        r2 = await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, "short_name": "T2"})
+        await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, **T1})
+        r2 = await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, **T2})
         topic2_id = r2.json()["topic"]["id"]
         resp = await client.post(f"/api/rooms/{room_id}/topics/{topic2_id}/select", json={"token": token})
         assert resp.status_code == 200
@@ -141,7 +162,7 @@ class TestSelectTopic:
 
     async def test_non_owner_cannot_select_topic(self, client, room_with_owner):
         room_id, token, _ = room_with_owner
-        r = await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, "short_name": "T1"})
+        r = await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, **T1})
         topic_id = r.json()["topic"]["id"]
         join = await client.post(f"/api/rooms/{room_id}/join", json={"nickname": "Bob"})
         bob_token = join.json()["token"]
@@ -155,8 +176,8 @@ class TestSelectTopic:
 
     async def test_before_reveal_resets_votes(self, client, room_with_owner):
         room_id, token, pid = room_with_owner
-        await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, "short_name": "T1"})
-        r2 = await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, "short_name": "T2"})
+        await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, **T1})
+        r2 = await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, **T2})
         topic2_id = r2.json()["topic"]["id"]
         await client.post(f"/api/rooms/{room_id}/vote", json={"participant_id": pid, "token": token, "card": "5"})
         await client.post(f"/api/rooms/{room_id}/topics/{topic2_id}/select", json={"token": token})
@@ -165,8 +186,8 @@ class TestSelectTopic:
 
     async def test_after_reveal_preserves_votes(self, client, room_with_owner):
         room_id, token, pid = room_with_owner
-        await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, "short_name": "T1"})
-        r2 = await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, "short_name": "T2"})
+        await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, **T1})
+        r2 = await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, **T2})
         topic2_id = r2.json()["topic"]["id"]
         await client.post(f"/api/rooms/{room_id}/vote", json={"participant_id": pid, "token": token, "card": "5"})
         await client.post(f"/api/rooms/{room_id}/reveal", json={"token": token})
@@ -178,8 +199,8 @@ class TestSelectTopic:
 class TestTopicEstimates:
     async def test_new_round_saves_estimates_to_topic(self, client, room_with_owner):
         room_id, token, pid = room_with_owner
-        await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, "short_name": "T1"})
-        await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, "short_name": "T2"})
+        await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, **T1})
+        await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, **T2})
         join = await client.post(f"/api/rooms/{room_id}/join", json={"nickname": "Bob"})
         bob_id = join.json()["participant_id"]
         bob_token = join.json()["token"]
@@ -195,8 +216,8 @@ class TestTopicEstimates:
     async def test_new_round_saves_participant_votes(self, client, room_with_owner):
         room_id, token, pid = room_with_owner
         owner_nickname = (await client.get(f"/api/rooms/{room_id}")).json()["participants"][pid]["nickname"]
-        await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, "short_name": "T1"})
-        await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, "short_name": "T2"})
+        await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, **T1})
+        await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, **T2})
         join = await client.post(f"/api/rooms/{room_id}/join", json={"nickname": "Bob"})
         bob_id = join.json()["participant_id"]
         bob_token = join.json()["token"]
@@ -212,9 +233,9 @@ class TestTopicEstimates:
 
     async def test_edit_topic_clears_participant_votes(self, client, room_with_owner):
         room_id, token, pid = room_with_owner
-        r = await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, "short_name": "T1"})
+        r = await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, **T1})
         topic_id = r.json()["topic"]["id"]
-        await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, "short_name": "T2"})
+        await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, **T2})
         join = await client.post(f"/api/rooms/{room_id}/join", json={"nickname": "Bob"})
         bob_id = join.json()["participant_id"]
         bob_token = join.json()["token"]
@@ -222,13 +243,13 @@ class TestTopicEstimates:
         await client.post(f"/api/rooms/{room_id}/vote", json={"participant_id": bob_id, "token": bob_token, "card": "3"})
         await client.post(f"/api/rooms/{room_id}/reveal", json={"token": token})
         await client.post(f"/api/rooms/{room_id}/new-round", json={"token": token})
-        await client.patch(f"/api/rooms/{room_id}/topics/{topic_id}", json={"token": token, "short_name": "T1 edited"})
+        await client.patch(f"/api/rooms/{room_id}/topics/{topic_id}", json={"token": token, "key": "T-1", "headline": "Edited"})
         room = (await client.get(f"/api/rooms/{room_id}")).json()
         assert room["topics"][0]["participant_votes"] is None
 
     async def test_retry_does_not_save_participant_votes(self, client, room_with_owner):
         room_id, token, pid = room_with_owner
-        await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, "short_name": "T1"})
+        await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, **T1})
         await client.post(f"/api/rooms/{room_id}/vote", json={"participant_id": pid, "token": token, "card": "5"})
         await client.post(f"/api/rooms/{room_id}/reveal", json={"token": token})
         await client.post(f"/api/rooms/{room_id}/retry", json={"token": token})
@@ -237,8 +258,8 @@ class TestTopicEstimates:
 
     async def test_new_round_advances_topic(self, client, room_with_owner):
         room_id, token, _ = room_with_owner
-        await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, "short_name": "T1"})
-        await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, "short_name": "T2"})
+        await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, **T1})
+        await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, **T2})
         await client.post(f"/api/rooms/{room_id}/reveal", json={"token": token})
         await client.post(f"/api/rooms/{room_id}/new-round", json={"token": token})
         room = (await client.get(f"/api/rooms/{room_id}")).json()
@@ -246,8 +267,8 @@ class TestTopicEstimates:
 
     async def test_retry_keeps_topic(self, client, room_with_owner):
         room_id, token, _ = room_with_owner
-        await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, "short_name": "T1"})
-        await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, "short_name": "T2"})
+        await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, **T1})
+        await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, **T2})
         await client.post(f"/api/rooms/{room_id}/reveal", json={"token": token})
         resp = await client.post(f"/api/rooms/{room_id}/retry", json={"token": token})
         assert resp.status_code == 200
@@ -256,7 +277,7 @@ class TestTopicEstimates:
 
     async def test_retry_does_not_save_estimates(self, client, room_with_owner):
         room_id, token, pid = room_with_owner
-        await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, "short_name": "T1"})
+        await client.post(f"/api/rooms/{room_id}/topics", json={"token": token, **T1})
         await client.post(f"/api/rooms/{room_id}/vote", json={"participant_id": pid, "token": token, "card": "5"})
         await client.post(f"/api/rooms/{room_id}/reveal", json={"token": token})
         await client.post(f"/api/rooms/{room_id}/retry", json={"token": token})

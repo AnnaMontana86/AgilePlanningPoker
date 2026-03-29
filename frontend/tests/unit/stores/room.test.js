@@ -89,22 +89,22 @@ describe('useRoomStore', () => {
     const store = useRoomStore()
     const roomWithTopics = structuredClone(mockRoom)
     roomWithTopics.topics = [
-      { id: 't1', short_name: 'Topic 1', link: '' },
-      { id: 't2', short_name: 'Topic 2', link: '' },
+      { id: 't1', key: 'T-1', headline: 'Topic 1', link: '' },
+      { id: 't2', key: 'T-2', headline: 'Topic 2', link: '' },
     ]
     roomWithTopics.current_topic_index = 0
     store.setRoom(roomWithTopics)
     store.applyEvent({ type: 'new_round', data: { round_number: 2, current_topic_index: 1 } })
     expect(store.currentTopicIndex).toBe(1)
-    expect(store.currentTopic.short_name).toBe('Topic 2')
+    expect(store.currentTopic.key).toBe('T-2')
   })
 
   it('new_round with estimated_topic updates topic estimates', () => {
     const store = useRoomStore()
     const roomWithTopics = structuredClone(mockRoom)
     roomWithTopics.topics = [
-      { id: 't1', short_name: 'Topic 1', link: '', estimates: null },
-      { id: 't2', short_name: 'Topic 2', link: '', estimates: null },
+      { id: 't1', key: 'T-1', headline: 'Topic 1', link: '', estimates: null },
+      { id: 't2', key: 'T-2', headline: 'Topic 2', link: '', estimates: null },
     ]
     roomWithTopics.current_topic_index = 0
     store.setRoom(roomWithTopics)
@@ -113,7 +113,7 @@ describe('useRoomStore', () => {
       data: {
         round_number: 2,
         current_topic_index: 1,
-        estimated_topic: { id: 't1', short_name: 'Topic 1', link: '', estimates: ['5', '3'] },
+        estimated_topic: { id: 't1', key: 'T-1', headline: 'Topic 1', link: '', estimates: ['5', '3'] },
       },
     })
     expect(store.topics[0].estimates).toEqual(['5', '3'])
@@ -126,35 +126,35 @@ describe('useRoomStore', () => {
     roomWithTopics.topics = []
     roomWithTopics.current_topic_index = 0
     store.setRoom(roomWithTopics)
-    store.applyEvent({ type: 'topic_added', data: { topic: { id: 't1', short_name: 'Sprint 1', link: '' } } })
+    store.applyEvent({ type: 'topic_added', data: { topic: { id: 't1', key: 'SPR-1', headline: 'Sprint 1', link: '' } } })
     expect(store.topics).toHaveLength(1)
-    expect(store.topics[0].short_name).toBe('Sprint 1')
+    expect(store.topics[0].key).toBe('SPR-1')
   })
 
   it('topics_reordered replaces topic list', () => {
     const store = useRoomStore()
     const roomWithTopics = structuredClone(mockRoom)
     roomWithTopics.topics = [
-      { id: 't1', short_name: 'A', link: '' },
-      { id: 't2', short_name: 'B', link: '' },
+      { id: 't1', key: 'A-1', headline: 'Alpha', link: '' },
+      { id: 't2', key: 'B-1', headline: 'Beta', link: '' },
     ]
     roomWithTopics.current_topic_index = 0
     store.setRoom(roomWithTopics)
     store.applyEvent({ type: 'topics_reordered', data: { topics: [
-      { id: 't2', short_name: 'B', link: '' },
-      { id: 't1', short_name: 'A', link: '' },
+      { id: 't2', key: 'B-1', headline: 'Beta', link: '' },
+      { id: 't1', key: 'A-1', headline: 'Alpha', link: '' },
     ]}})
-    expect(store.topics[0].short_name).toBe('B')
+    expect(store.topics[0].key).toBe('B-1')
   })
 
   it('topic_updated replaces topic data', () => {
     const store = useRoomStore()
     const roomWithTopics = structuredClone(mockRoom)
-    roomWithTopics.topics = [{ id: 't1', short_name: 'Old', link: '' }]
+    roomWithTopics.topics = [{ id: 't1', key: 'OLD-1', headline: 'Old Headline', link: '' }]
     roomWithTopics.current_topic_index = 0
     store.setRoom(roomWithTopics)
-    store.applyEvent({ type: 'topic_updated', data: { topic: { id: 't1', short_name: 'New', link: 'https://x.com' } } })
-    expect(store.topics[0].short_name).toBe('New')
+    store.applyEvent({ type: 'topic_updated', data: { topic: { id: 't1', key: 'NEW-1', headline: 'New Headline', link: 'https://x.com' } } })
+    expect(store.topics[0].key).toBe('NEW-1')
     expect(store.topics[0].link).toBe('https://x.com')
   })
 
@@ -162,8 +162,8 @@ describe('useRoomStore', () => {
     const store = useRoomStore()
     const roomWithTopics = structuredClone(mockRoom)
     roomWithTopics.topics = [
-      { id: 't1', short_name: 'A', link: '' },
-      { id: 't2', short_name: 'B', link: '' },
+      { id: 't1', key: 'A-1', headline: 'Alpha', link: '' },
+      { id: 't2', key: 'B-1', headline: 'Beta', link: '' },
     ]
     roomWithTopics.current_topic_index = 1
     store.setRoom(roomWithTopics)

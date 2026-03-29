@@ -1,5 +1,5 @@
 from datetime import datetime
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 import uuid
 
 from app.models.card_set import CardSet
@@ -8,14 +8,22 @@ from app.models.round import Round
 
 
 # A single agenda item to be estimated in a planning poker room.
-# Responsible for storing the topic's short name, optional link,
+# Responsible for storing the topic's key, headline, optional link,
 # and the final estimates and per-participant vote history recorded after
 # the round is closed.
 class Topic(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    short_name: str = Field(..., min_length=1, max_length=100)
+    key: str = Field(..., min_length=1, max_length=30)
+    headline: str = Field(..., min_length=1, max_length=200)
     link: str = ""
     estimates: list[str] | None = None  # None = not estimated yet
+
+    @field_validator('link')
+    @classmethod
+    def link_must_be_http(cls, v: str) -> str:
+        if v and not v.startswith(('http://', 'https://')):
+            raise ValueError('link must be an http or https URL')
+        return v
     participant_votes: dict[str, str] | None = None  # nickname → card
 
 

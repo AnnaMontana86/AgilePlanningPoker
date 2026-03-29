@@ -1,8 +1,7 @@
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 import asyncio
-import json
 from datetime import timedelta
 
 from app.models.card_set import CardSet, PREDEFINED_CARD_SETS
@@ -76,12 +75,20 @@ class EmojiRequest(BaseModel):
 
 
 # Request body for adding a new topic to the room's backlog.
-# Responsible for carrying the owner token, the topic's short name,
+# Responsible for carrying the owner token, the topic's key and headline,
 # and an optional reference link.
 class AddTopicRequest(BaseModel):
     token: str
-    short_name: str
+    key: str
+    headline: str
     link: str = ""
+
+    @field_validator('link')
+    @classmethod
+    def link_must_be_http(cls, v: str) -> str:
+        if v and not v.startswith(('http://', 'https://')):
+            raise ValueError('link must be an http or https URL')
+        return v
 
 
 # Request body for reordering the room's topic list.
@@ -93,12 +100,20 @@ class ReorderTopicsRequest(BaseModel):
 
 
 # Request body for editing an existing topic's metadata.
-# Responsible for carrying the owner token, the updated short name,
+# Responsible for carrying the owner token, the updated key and headline,
 # and the updated reference link.
 class EditTopicRequest(BaseModel):
     token: str
-    short_name: str
+    key: str
+    headline: str
     link: str = ""
+
+    @field_validator('link')
+    @classmethod
+    def link_must_be_http(cls, v: str) -> str:
+        if v and not v.startswith(('http://', 'https://')):
+            raise ValueError('link must be an http or https URL')
+        return v
 
 
 # Request body for switching the room's active topic.
@@ -281,9 +296,9 @@ async def add_topic(room_id: str, req: AddTopicRequest):
     owner = next((p for p in room.participants.values() if p.is_owner), None)
     if not owner or req.token != owner.id:
         raise HTTPException(status_code=403, detail="Only the room owner can add topics")
-    if any(t.short_name == req.short_name for t in room.topics):
-        raise HTTPException(status_code=409, detail="A topic with this short name already exists in the room")
-    topic = Topic(short_name=req.short_name, link=req.link)
+    if any(t.key == req.key for t in room.topics):
+        raise HTTPException(status_code=409, detail="A topic with this key already exists in the room")
+    topic = Topic(key=req.key, headline=req.headline, link=req.link)
     room.topics.append(topic)
     store.save_room(room)
     await broadcaster.broadcast(room_id, "topic_added", {"topic": topic.model_dump()})
@@ -314,9 +329,10 @@ async def edit_topic(room_id: str, topic_id: str, req: EditTopicRequest):
     topic = next((t for t in room.topics if t.id == topic_id), None)
     if not topic:
         raise HTTPException(status_code=404, detail="Topic not found")
-    if req.short_name != topic.short_name and any(t.short_name == req.short_name for t in room.topics):
-        raise HTTPException(status_code=409, detail="A topic with this short name already exists in the room")
-    topic.short_name = req.short_name
+    if req.key != topic.key and any(t.key == req.key for t in room.topics):
+        raise HTTPException(status_code=409, detail="A topic with this key already exists in the room")
+    topic.key = req.key
+    topic.headline = req.headline
     topic.link = req.link
     topic.estimates = None
     topic.participant_votes = None

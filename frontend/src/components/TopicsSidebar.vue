@@ -3,7 +3,7 @@
     v-if="roomStore.topics.length > 0 || isOwner"
     :class="[
       'flex flex-col border-t border-gray-200 dark:border-gray-700 lg:border-t-0 lg:flex-shrink-0',
-      topicsOpen ? 'lg:w-80 xl:w-96' : 'lg:w-10',
+      topicsOpen ? 'lg:w-[26.5rem] xl:w-[32rem]' : 'lg:w-10',
     ]"
   >
     <!-- Header row: toggle + label + download -->
@@ -42,8 +42,23 @@
           v-for="(topic, idx) in roomStore.topics"
           :key="topic.id"
           :class="topicItemClass(topic, idx)"
+          :draggable="isOwner"
+          @dragstart="onDragStart(idx)"
+          @dragover.prevent="onDragOver(idx)"
+          @drop.prevent="onDrop()"
+          @dragend="onDragEnd()"
           @click="isOwner && idx !== roomStore.currentTopicIndex && selectTopic(topic.id)"
         >
+          <!-- Drag handle (owner only) -->
+          <svg
+            v-if="isOwner"
+            xmlns="http://www.w3.org/2000/svg"
+            class="h-4 w-4 shrink-0 cursor-grab text-gray-300 dark:text-gray-600 hover:text-gray-400 dark:hover:text-gray-400"
+            viewBox="0 0 20 20" fill="currentColor"
+            @mousedown.stop
+          >
+            <path d="M7 4a1 1 0 110-2 1 1 0 010 2zm6 0a1 1 0 110-2 1 1 0 010 2zM7 9a1 1 0 110-2 1 1 0 010 2zm6 0a1 1 0 110-2 1 1 0 010 2zm-6 5a1 1 0 110-2 1 1 0 010 2zm6 0a1 1 0 110-2 1 1 0 010 2z" />
+          </svg>
           <span class="w-5 text-xs text-gray-400 shrink-0">{{ idx + 1 }}</span>
           <span
             v-if="idx === roomStore.currentTopicIndex"
@@ -57,8 +72,8 @@
               rel="noopener"
               class="text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:underline"
               @click.stop
-            >{{ topic.short_name }}</a>
-            <span v-else class="text-sm font-medium">{{ topic.short_name }}</span>
+            ><span class="font-mono">{{ topic.key }}</span><span v-if="topic.key">: </span><span class="text-gray-500 dark:text-gray-400">{{ topic.headline }}</span></a>
+            <span v-else class="text-sm font-medium"><span class="font-mono">{{ topic.key }}</span><span v-if="topic.key">: </span><span class="text-gray-500 dark:text-gray-400">{{ topic.headline }}</span></span>
           </span>
           <!-- Estimated badge -->
           <span v-if="topic.estimates != null" class="flex items-center gap-1 shrink-0">
@@ -82,18 +97,6 @@
               </svg>
             </button>
             <button
-              @click="moveTopic(idx, -1)"
-              :disabled="idx === 0"
-              class="rounded p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 disabled:opacity-30 transition-colors"
-              title="Move up"
-            >↑</button>
-            <button
-              @click="moveTopic(idx, 1)"
-              :disabled="idx === roomStore.topics.length - 1"
-              class="rounded p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 disabled:opacity-30 transition-colors"
-              title="Move down"
-            >↓</button>
-            <button
               @click="deleteTopic(topic.id)"
               class="rounded p-1 text-red-400 hover:text-red-600 transition-colors"
               title="Remove topic"
@@ -108,12 +111,20 @@
 
       <!-- Add topic inline form -->
       <div v-if="isOwner && showAddTopic" class="mt-3 space-y-2">
-        <input
-          v-model="newTopicName"
-          placeholder="Short name"
-          @keydown.enter="addTopic"
-          class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-        />
+        <div class="flex gap-2">
+          <input
+            v-model="newTopicKey"
+            placeholder="Key"
+            @keydown.enter="addTopic"
+            class="w-28 shrink-0 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+          <input
+            v-model="newTopicHeadline"
+            placeholder="Headline"
+            @keydown.enter="addTopic"
+            class="flex-1 min-w-0 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+        </div>
         <input
           v-model="newTopicLink"
           placeholder="Link (optional)"
@@ -123,7 +134,7 @@
         <div class="flex gap-2">
           <button
             @click="addTopic"
-            :disabled="!newTopicName.trim()"
+            :disabled="!newTopicKey.trim() || !newTopicHeadline.trim()"
             class="flex-1 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >Add</button>
           <button
@@ -144,7 +155,7 @@
     <!-- Edit topic dialog -->
     <EditTopicDialog
       :topic="editingTopic"
-      @save="({ short_name, link }) => saveEditTopic(editingTopic.id, { short_name, link })"
+      @save="({ key, headline, link }) => saveEditTopic(editingTopic.id, { key, headline, link })"
       @cancel="editingTopic = null"
     />
   </aside>
@@ -152,8 +163,7 @@
 
 <script setup>
 // Collapsible sidebar listing the room's topics with owner controls.
-// Responsible for topic selection, reordering, editing, deletion, and
-// CSV export of estimates.
+// Responsible for topic selection, reordering, editing, deletion, and CSV export of estimates.
 import { ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useRoomStore } from '../stores/room'
@@ -181,9 +191,26 @@ async function apiFetch(path, method = 'POST', body = {}) {
   return res.json()
 }
 
-const { showAddTopic, newTopicName, newTopicLink, editingTopic,
-        addTopic, moveTopic, deleteTopic, selectTopic, openEditTopic, saveEditTopic } =
+const { showAddTopic, newTopicKey, newTopicHeadline, newTopicLink, editingTopic,
+        addTopic, reorderTopics, deleteTopic, selectTopic, openEditTopic, saveEditTopic } =
   useTopics(roomId, roomStore, apiFetch, error)
+
+const dragFromIdx = ref(null)
+const dragOverIdx = ref(null)
+
+function onDragStart(idx) { dragFromIdx.value = idx }
+function onDragOver(idx) { dragOverIdx.value = idx }
+function onDrop() {
+  if (dragFromIdx.value !== null && dragOverIdx.value !== null) {
+    reorderTopics(dragFromIdx.value, dragOverIdx.value)
+  }
+  dragFromIdx.value = null
+  dragOverIdx.value = null
+}
+function onDragEnd() {
+  dragFromIdx.value = null
+  dragOverIdx.value = null
+}
 
 const { compactEstimates } = useVoteAnalysis(roomStore)
 
@@ -201,11 +228,11 @@ function downloadCsv() {
   }
   const nicknames = [...nicknameSet].sort()
 
-  const header = ['Topic', 'Link', ...nicknames]
+  const header = ['Key', 'Headline', 'Link', ...nicknames]
 
   const rows = topics.map(topic => {
     const perUser = nicknames.map(n => topic.participant_votes?.[n] ?? '')
-    return [topic.short_name, topic.link ?? '', ...perUser]
+    return [topic.key, topic.headline, topic.link ?? '', ...perUser]
   })
 
   // Semicolon delimiter avoids conflicts with comma-containing card values;
@@ -229,12 +256,16 @@ function downloadCsv() {
 
 function topicItemClass(topic, idx) {
   const base = 'flex items-center gap-3 rounded-lg border px-4 py-2.5 bg-white dark:bg-gray-800 transition-colors'
-  const active = idx === roomStore.currentTopicIndex
-    ? 'border-indigo-400 dark:border-indigo-500'
-    : 'border-gray-200 dark:border-gray-700'
+  const isDragOver = props.isOwner && dragOverIdx.value === idx && dragFromIdx.value !== idx
+  const active = isDragOver
+    ? 'border-indigo-400 dark:border-indigo-400 bg-indigo-50 dark:bg-indigo-900/20'
+    : idx === roomStore.currentTopicIndex
+      ? 'border-indigo-400 dark:border-indigo-500'
+      : 'border-gray-200 dark:border-gray-700'
+  const dragging = props.isOwner && dragFromIdx.value === idx ? 'opacity-40' : ''
   const clickable = props.isOwner && idx !== roomStore.currentTopicIndex
     ? 'cursor-pointer hover:border-indigo-300 dark:hover:border-indigo-600'
     : ''
-  return `${base} ${active} ${clickable}`
+  return `${base} ${active} ${dragging} ${clickable}`
 }
 </script>
