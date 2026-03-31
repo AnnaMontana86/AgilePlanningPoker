@@ -3,31 +3,50 @@
 // reorder, delete, select, and patch requests to the API.
 import { ref } from 'vue'
 
+function isValidLink(link) {
+  if (!link) return true
+  try {
+    const url = new URL(link)
+    return url.protocol === 'http:' || url.protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
 export function useTopics(roomId, roomStore, apiFetch, error) {
   const showAddTopic = ref(false)
-  const newTopicName = ref('')
+  const newTopicKey = ref('')
+  const newTopicHeadline = ref('')
   const newTopicLink = ref('')
+  const newTopicLinkError = ref('')
   const editingTopic = ref(null)
 
   async function addTopic() {
-    if (!newTopicName.value.trim()) return
+    if (!newTopicKey.value.trim() || !newTopicHeadline.value.trim()) return
+    const link = newTopicLink.value.trim()
+    if (!isValidLink(link)) {
+      newTopicLinkError.value = 'Please enter a valid URL (must start with http:// or https://).'
+      return
+    }
+    newTopicLinkError.value = ''
     try {
       await apiFetch(`/api/rooms/${roomId}/topics`, 'POST', {
-        short_name: newTopicName.value.trim(),
-        link: newTopicLink.value.trim(),
+        key: newTopicKey.value.trim(),
+        headline: newTopicHeadline.value.trim(),
+        link,
       })
-      newTopicName.value = ''
+      newTopicKey.value = ''
+      newTopicHeadline.value = ''
       newTopicLink.value = ''
       showAddTopic.value = false
     } catch (e) { error.value = e.message }
   }
 
-  // dir is -1 (move up) or +1 (move down); sends the full reordered ID list.
-  async function moveTopic(idx, dir) {
+  async function reorderTopics(fromIdx, toIdx) {
+    if (fromIdx === toIdx) return
     const topics = [...roomStore.topics]
-    const newIdx = idx + dir
-    if (newIdx < 0 || newIdx >= topics.length) return
-    ;[topics[idx], topics[newIdx]] = [topics[newIdx], topics[idx]]
+    const [moved] = topics.splice(fromIdx, 1)
+    topics.splice(toIdx, 0, moved)
     try {
       await apiFetch(`/api/rooms/${roomId}/topics`, 'PUT', {
         topic_ids: topics.map(t => t.id),
@@ -51,10 +70,11 @@ export function useTopics(roomId, roomStore, apiFetch, error) {
     editingTopic.value = topic
   }
 
-  async function saveEditTopic(topicId, { short_name, link }) {
+  async function saveEditTopic(topicId, { key, headline, link }) {
     try {
       await apiFetch(`/api/rooms/${roomId}/topics/${topicId}`, 'PATCH', {
-        short_name: short_name.trim(),
+        key: key.trim(),
+        headline: headline.trim(),
         link: link?.trim() ?? '',
       })
       editingTopic.value = null
@@ -62,8 +82,8 @@ export function useTopics(roomId, roomStore, apiFetch, error) {
   }
 
   return {
-    showAddTopic, newTopicName, newTopicLink, editingTopic,
-    addTopic, moveTopic, deleteTopic, selectTopic,
+    showAddTopic, newTopicKey, newTopicHeadline, newTopicLink, newTopicLinkError, editingTopic,
+    addTopic, reorderTopics, deleteTopic, selectTopic,
     openEditTopic, saveEditTopic,
   }
 }

@@ -8,6 +8,7 @@ dependencies = [
     "sse-starlette>=2.1.0",
     "pydantic>=2.7.0",
     "python-multipart>=0.0.9",
+    "slowapi>=0.1.9,<0.2",
 ]
 
 [project.optional-dependencies]
