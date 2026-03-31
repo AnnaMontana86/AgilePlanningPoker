@@ -37,11 +37,25 @@
     <!-- Collapsible content -->
     <div v-if="noteOpen" class="px-4 pb-4 flex-1 flex flex-col gap-3">
       <!-- Edit mode -->
-      <div v-if="noteEditing" class="space-y-2">
+      <div
+        v-if="noteEditing"
+        class="space-y-2 relative"
+        @drop="handleDrop"
+        @dragover="handleDragOver"
+        @dragleave="handleDragLeave"
+      >
+        <!-- Drop-zone overlay -->
+        <div
+          v-if="isDragOver"
+          class="absolute inset-0 z-10 flex items-center justify-center rounded-lg border-2 border-dashed border-amber-400 bg-amber-50/80 dark:bg-amber-900/40 pointer-events-none"
+        >
+          <span class="text-sm font-medium text-amber-600 dark:text-amber-300">Drop image here</span>
+        </div>
+        <p v-if="uploading" class="text-xs text-gray-400">Uploading image…</p>
         <textarea
           v-model="noteDraft"
           rows="8"
-          placeholder="Write a note for all participants… (markdown supported)"
+          placeholder="Write a note for all participants… (markdown supported, drop images here)"
           class="w-full rounded-lg border border-amber-300 dark:border-amber-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 resize-y"
         />
         <div class="flex gap-2 justify-end">
@@ -74,13 +88,15 @@
 
 <script setup>
 // Collapsible sidebar for the shared room note.
-// Responsible for rendering the markdown note as sanitised HTML and
-// providing the owner with an inline edit interface.
+// Responsible for rendering the markdown note as sanitised HTML,
+// providing the owner with an inline edit interface, and supporting
+// drag-and-drop image upload into the note.
 import { ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useRoomStore } from '../stores/room'
 import { useUserStore } from '../stores/user'
 import { useNote } from '../composables/useNote'
+import { useImageUpload } from '../composables/useImageUpload'
 
 defineProps({ isOwner: Boolean })
 
@@ -100,6 +116,44 @@ async function apiFetch(path, method = 'POST', body = {}) {
   return res.json()
 }
 
-const { noteOpen, noteEditing, noteDraft, renderedNote, startEditNote, cancelNote, saveNote } =
+const { noteOpen, noteEditing, noteDraft, renderedNote, startEditNote, cancelNote, saveNote, insertImageMarkdown } =
   useNote(roomId, roomStore, apiFetch, error)
+
+const { uploading, uploadImage } = useImageUpload(roomId, apiFetch, error)
+const isDragOver = ref(false)
+
+async function handleDrop(event) {
+  event.preventDefault()
+  isDragOver.value = false
+  for (const file of Array.from(event.dataTransfer?.files ?? []).filter(f => f.type.startsWith('image/'))) {
+    const url = await uploadImage(file)
+    if (url) insertImageMarkdown(url)
+  }
+}
+
+function handleDragOver(e) {
+  e.preventDefault()
+  isDragOver.value = true
+}
+
+function handleDragLeave() {
+  isDragOver.value = false
+}
 </script>
+
+<style scoped>
+:deep(.prose img) {
+  display: inline-block;
+  max-height: 80px;
+  width: auto;
+  border-radius: 4px;
+  cursor: zoom-in;
+  transition: max-height 0.2s ease, box-shadow 0.2s ease;
+}
+:deep(.prose img:hover) {
+  max-height: 600px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.25);
+  position: relative;
+  z-index: 20;
+}
+</style>
