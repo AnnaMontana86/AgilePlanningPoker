@@ -34,5 +34,9 @@ export function useNote(roomId, roomStore, apiFetch, error) {
     } catch (e) { error.value = e.message }
   }
 
-  return { noteOpen, noteEditing, noteDraft, renderedNote, startEditNote, cancelNote, saveNote }
+  function insertImageMarkdown(url) {
+    noteDraft.value = (noteDraft.value ?? '') + `\n![](${url})\n`
+  }
+
+  return { noteOpen, noteEditing, noteDraft, renderedNote, startEditNote, cancelNote, saveNote, insertImageMarkdown }
 }

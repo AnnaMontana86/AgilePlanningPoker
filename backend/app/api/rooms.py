@@ -1,8 +1,14 @@
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, Response
 from pydantic import BaseModel, Field, field_validator
 import asyncio
+import base64
+import uuid as _uuid
 from datetime import timedelta
+
+MAX_IMAGE_SIZE_BYTES = 500 * 1024   # 500 KB decoded
+MAX_IMAGES_PER_ROOM  = 10
+ALLOWED_IMAGE_MIMES  = {"image/jpeg", "image/png", "image/gif", "image/webp"}
 
 from app.models.card_set import CardSet, PREDEFINED_CARD_SETS
 from app.models.participant import Participant
@@ -136,6 +142,34 @@ class NoteRequest(BaseModel):
     def no_script_tags(cls, v: str | None) -> str | None:
         if v and '<script' in v.lower():
             raise ValueError('note must not contain script code')
+        return v
+
+
+# Request body for uploading an image to the room's note.
+# Responsible for carrying the owner token and the base64-encoded image
+# as a data URL, validating MIME type and decoded size.
+class ImageUploadRequest(BaseModel):
+    token: str
+    data_url: str = Field(..., max_length=700_000)
+
+    @field_validator('data_url')
+    @classmethod
+    def validate_data_url(cls, v: str) -> str:
+        if not v.startswith('data:'):
+            raise ValueError('data_url must be a data URL')
+        try:
+            header, b64 = v.split(',', 1)
+            mime = header.split(';')[0][5:]
+        except Exception:
+            raise ValueError('malformed data URL')
+        if mime not in ALLOWED_IMAGE_MIMES:
+            raise ValueError(f'unsupported image type: {mime}')
+        try:
+            raw = base64.b64decode(b64, validate=True)
+        except Exception:
+            raise ValueError('invalid base64 data')
+        if len(raw) > MAX_IMAGE_SIZE_BYTES:
+            raise ValueError(f'image exceeds {MAX_IMAGE_SIZE_BYTES // 1024} KB limit')
         return v
 
 
@@ -551,6 +585,38 @@ async def update_note(request: Request, room_id: str, req: NoteRequest):
     store.save_room(room)
     await broadcaster.broadcast(room_id, "note_updated", {"note": room.note})
     return {"ok": True, "note": room.note}
+
+
+@router.post("/rooms/{room_id}/images", status_code=201)
+@limiter.limit("20/minute")
+async def upload_image(request: Request, room_id: str, req: ImageUploadRequest):
+    room = _get_room_or_404(room_id)
+    owner = next((p for p in room.participants.values() if p.is_owner), None)
+    if not owner or req.token != owner.id:
+        raise HTTPException(status_code=403, detail="Only the room owner can upload images")
+    if len(room.images) >= MAX_IMAGES_PER_ROOM:
+        raise HTTPException(status_code=409, detail=f"Room already has {MAX_IMAGES_PER_ROOM} images")
+    header, b64 = req.data_url.split(',', 1)
+    mime = header.split(';')[0][5:]
+    image_id = str(_uuid.uuid4())
+    room.images[image_id] = {"data": b64, "mime": mime}
+    store.save_room(room)
+    return {"image_id": image_id}
+
+
+@router.get("/rooms/{room_id}/images/{image_id}")
+@limiter.limit("120/minute")
+async def get_image(request: Request, room_id: str, image_id: str):
+    room = _get_room_or_404(room_id)
+    img = room.images.get(image_id)
+    if not img:
+        raise HTTPException(status_code=404, detail="Image not found")
+    raw = base64.b64decode(img["data"])
+    return Response(
+        content=raw,
+        media_type=img["mime"],
+        headers={"Cache-Control": "public, max-age=3600"},
+    )
 
 
 @router.get("/rooms/{room_id}/events")

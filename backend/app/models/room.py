@@ -48,6 +48,8 @@ class Room(BaseModel):
     music_volume: float = 0.05
 
     note: str | None = None
+    images: dict[str, dict] = Field(default_factory=dict)
+    # Each value: {"data": "<base64 str>", "mime": "image/jpeg|png|gif|webp"}
 
     def touch(self) -> None:
         self.last_activity_at = datetime.utcnow()
