@@ -21,12 +21,21 @@
             class="flex-1 min-w-0 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
         </div>
-        <input
-          v-model="draftLink"
-          placeholder="Link (optional)"
-          @keydown.enter="save"
-          class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-        />
+        <div class="space-y-1">
+          <input
+            v-model="draftLink"
+            placeholder="Link (optional)"
+            @keydown.enter="save"
+            @input="linkError = ''"
+            :class="[
+              'w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 bg-white dark:bg-gray-700',
+              linkError
+                ? 'border-red-400 focus:ring-red-400'
+                : 'border-gray-300 dark:border-gray-600 focus:ring-indigo-500',
+            ]"
+          />
+          <p v-if="linkError" class="text-xs text-red-500">{{ linkError }}</p>
+        </div>
       </div>
       <div class="flex justify-end gap-3">
         <button
@@ -58,17 +67,35 @@ const emit = defineEmits(['save', 'cancel'])
 const draftKey = ref('')
 const draftHeadline = ref('')
 const draftLink = ref('')
+const linkError = ref('')
 
 watch(() => props.topic, (t) => {
   if (t) {
     draftKey.value = t.key
     draftHeadline.value = t.headline
     draftLink.value = t.link ?? ''
+    linkError.value = ''
   }
 }, { immediate: true })
 
+function isValidLink(link) {
+  if (!link) return true
+  try {
+    const url = new URL(link)
+    return url.protocol === 'http:' || url.protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
 function save() {
   if (!draftKey.value.trim() || !draftHeadline.value.trim()) return
-  emit('save', { key: draftKey.value.trim(), headline: draftHeadline.value.trim(), link: draftLink.value.trim() })
+  const link = draftLink.value.trim()
+  if (!isValidLink(link)) {
+    linkError.value = 'Please enter a valid URL (must start with http:// or https://).'
+    return
+  }
+  linkError.value = ''
+  emit('save', { key: draftKey.value.trim(), headline: draftHeadline.value.trim(), link })
 }
 </script>

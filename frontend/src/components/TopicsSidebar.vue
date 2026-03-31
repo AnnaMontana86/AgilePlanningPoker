@@ -125,12 +125,21 @@
             class="flex-1 min-w-0 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
         </div>
-        <input
-          v-model="newTopicLink"
-          placeholder="Link (optional)"
-          @keydown.enter="addTopic"
-          class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-        />
+        <div class="space-y-1">
+          <input
+            v-model="newTopicLink"
+            placeholder="Link (optional)"
+            @keydown.enter="addTopic"
+            @input="newTopicLinkError = ''"
+            :class="[
+              'w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 bg-white dark:bg-gray-700',
+              newTopicLinkError
+                ? 'border-red-400 focus:ring-red-400'
+                : 'border-gray-300 dark:border-gray-600 focus:ring-indigo-500',
+            ]"
+          />
+          <p v-if="newTopicLinkError" class="text-xs text-red-500">{{ newTopicLinkError }}</p>
+        </div>
         <div class="flex gap-2">
           <button
             @click="addTopic"
@@ -191,7 +200,7 @@ async function apiFetch(path, method = 'POST', body = {}) {
   return res.json()
 }
 
-const { showAddTopic, newTopicKey, newTopicHeadline, newTopicLink, editingTopic,
+const { showAddTopic, newTopicKey, newTopicHeadline, newTopicLink, newTopicLinkError, editingTopic,
         addTopic, reorderTopics, deleteTopic, selectTopic, openEditTopic, saveEditTopic } =
   useTopics(roomId, roomStore, apiFetch, error)
 
