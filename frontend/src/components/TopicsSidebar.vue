@@ -2,7 +2,7 @@
   <aside
     v-if="roomStore.topics.length > 0 || isOwner"
     :class="[
-      'flex flex-col border-t border-gray-200 dark:border-gray-700 lg:border-t-0 lg:flex-shrink-0',
+      'flex flex-col border-t border-[var(--hp-border)] bg-[var(--hp-surface)] lg:border-t-0 lg:border-l lg:flex-shrink-0',
       topicsOpen ? 'lg:w-[26.5rem] xl:w-[32rem]' : 'lg:w-10',
     ]"
   >
@@ -11,7 +11,7 @@
       <button
         @click="topicsOpen = !topicsOpen"
         :title="topicsOpen ? 'Hide topics' : 'Show topics'"
-        class="rounded p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+        class="rounded p-1 text-[var(--hp-muted)] hover:text-[var(--hp-text)] transition-colors"
       >
         <!-- › when open (collapse), ‹ when closed (expand) -->
         <svg v-if="topicsOpen" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
@@ -21,12 +21,12 @@
           <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
         </svg>
       </button>
-      <h3 v-if="topicsOpen" class="flex-1 text-sm font-medium text-gray-500 uppercase tracking-wide">Topics</h3>
+      <h3 v-if="topicsOpen" class="flex-1 text-xs font-semibold font-brand-display text-[var(--hp-muted)] uppercase tracking-widest">Topics</h3>
       <button
         v-if="topicsOpen && roomStore.topics.length > 0"
         @click="downloadCsv"
         title="Download CSV"
-        class="rounded p-1 text-gray-400 hover:text-indigo-500 transition-colors"
+        class="rounded p-1 text-[var(--hp-muted)] hover:text-[var(--hp-accent)] transition-colors"
       >
         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
           <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
@@ -53,16 +53,16 @@
           <svg
             v-if="isOwner"
             xmlns="http://www.w3.org/2000/svg"
-            class="h-4 w-4 shrink-0 cursor-grab text-gray-300 dark:text-gray-600 hover:text-gray-400 dark:hover:text-gray-400"
+            class="h-4 w-4 shrink-0 cursor-grab text-[var(--hp-border)] hover:text-[var(--hp-muted)] transition-colors"
             viewBox="0 0 20 20" fill="currentColor"
             @mousedown.stop
           >
             <path d="M7 4a1 1 0 110-2 1 1 0 010 2zm6 0a1 1 0 110-2 1 1 0 010 2zM7 9a1 1 0 110-2 1 1 0 010 2zm6 0a1 1 0 110-2 1 1 0 010 2zm-6 5a1 1 0 110-2 1 1 0 010 2zm6 0a1 1 0 110-2 1 1 0 010 2z" />
           </svg>
-          <span class="w-5 text-xs text-gray-400 shrink-0">{{ idx + 1 }}</span>
+          <span class="w-5 text-xs text-[var(--hp-muted)] font-brand-mono shrink-0">{{ idx + 1 }}</span>
           <span
             v-if="idx === roomStore.currentTopicIndex"
-            class="h-2 w-2 rounded-full bg-indigo-500 shrink-0"
+            class="h-2 w-2 rounded-full bg-[var(--hp-accent)] shrink-0"
           ></span>
           <span class="flex-1 min-w-0 truncate">
             <a
@@ -70,10 +70,10 @@
               :href="topic.link"
               target="_blank"
               rel="noopener"
-              class="text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:underline"
+              class="text-sm font-medium text-[var(--hp-accent)] hover:underline"
               @click.stop
-            ><span class="font-mono">{{ topic.key }}</span><span v-if="topic.key">: </span><span class="text-gray-500 dark:text-gray-400">{{ topic.headline }}</span></a>
-            <span v-else class="text-sm font-medium"><span class="font-mono">{{ topic.key }}</span><span v-if="topic.key">: </span><span class="text-gray-500 dark:text-gray-400">{{ topic.headline }}</span></span>
+            ><span class="font-brand-mono">{{ topic.key }}</span><span v-if="topic.key">: </span><span class="text-[var(--hp-muted)]">{{ topic.headline }}</span></a>
+            <span v-else class="text-sm font-medium text-[var(--hp-text)]"><span class="font-brand-mono">{{ topic.key }}</span><span v-if="topic.key">: </span><span class="text-[var(--hp-muted)]">{{ topic.headline }}</span></span>
           </span>
           <!-- Estimated badge -->
           <span v-if="topic.estimates != null" class="flex items-center gap-1 shrink-0">
@@ -84,12 +84,12 @@
               v-for="e in compactEstimates(topic.estimates)"
               :key="e.label"
               class="rounded-full bg-green-100 dark:bg-green-900/40 px-1.5 py-0.5 text-xs font-medium"
-            ><span class="text-green-700 dark:text-green-300">{{ e.value }}</span><span v-if="e.count > 1" class="text-gray-500 dark:text-gray-400">({{ e.count }}x)</span></span>
+            ><span class="text-green-700 dark:text-green-300">{{ e.value }}</span><span v-if="e.count > 1" class="text-[var(--hp-muted)]">({{ e.count }}x)</span></span>
           </span>
           <div v-if="isOwner" class="flex items-center gap-1 shrink-0" @click.stop>
             <button
               @click="openEditTopic(topic)"
-              class="rounded p-1 text-gray-400 hover:text-indigo-500 transition-colors"
+              class="rounded p-1 text-[var(--hp-muted)] hover:text-[var(--hp-accent)] transition-colors"
               title="Edit topic"
             >
               <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
@@ -116,13 +116,13 @@
             v-model="newTopicKey"
             placeholder="Key"
             @keydown.enter="addTopic"
-            class="w-28 shrink-0 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            class="w-28 shrink-0 rounded-lg border border-[var(--hp-border)] bg-[var(--hp-surface)] text-[var(--hp-text)] px-3 py-2 text-sm font-brand-mono placeholder:text-[var(--hp-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--hp-accent)]"
           />
           <input
             v-model="newTopicHeadline"
             placeholder="Headline"
             @keydown.enter="addTopic"
-            class="flex-1 min-w-0 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            class="flex-1 min-w-0 rounded-lg border border-[var(--hp-border)] bg-[var(--hp-surface)] text-[var(--hp-text)] px-3 py-2 text-sm placeholder:text-[var(--hp-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--hp-accent)]"
           />
         </div>
         <div class="space-y-1">
@@ -132,10 +132,10 @@
             @keydown.enter="addTopic"
             @input="newTopicLinkError = ''"
             :class="[
-              'w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 bg-white dark:bg-gray-700',
+              'w-full rounded-lg border px-3 py-2 text-sm bg-[var(--hp-surface)] text-[var(--hp-text)] placeholder:text-[var(--hp-muted)] focus:outline-none focus:ring-2',
               newTopicLinkError
                 ? 'border-red-400 focus:ring-red-400'
-                : 'border-gray-300 dark:border-gray-600 focus:ring-indigo-500',
+                : 'border-[var(--hp-border)] focus:ring-[var(--hp-accent)]',
             ]"
           />
           <p v-if="newTopicLinkError" class="text-xs text-red-500">{{ newTopicLinkError }}</p>
@@ -144,11 +144,11 @@
           <button
             @click="addTopic"
             :disabled="!newTopicKey.trim() || !newTopicHeadline.trim()"
-            class="flex-1 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            class="flex-1 rounded-lg bg-[var(--hp-accent)] px-3 py-2 text-sm font-semibold text-white hover:bg-[var(--hp-accent-h)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >Add</button>
           <button
             @click="showAddTopic = false"
-            class="rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            class="rounded-lg border border-[var(--hp-border)] text-[var(--hp-muted)] px-3 py-2 text-sm hover:bg-[var(--hp-accent-subtle)] transition-colors"
           >Cancel</button>
         </div>
       </div>
@@ -157,7 +157,7 @@
       <button
         v-if="isOwner && !showAddTopic"
         @click="showAddTopic = true"
-        class="mt-3 w-full rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 py-2 text-sm text-gray-400 dark:text-gray-500 hover:border-indigo-400 hover:text-indigo-500 dark:hover:border-indigo-500 dark:hover:text-indigo-400 transition-colors"
+        class="mt-3 w-full rounded-lg border-2 border-dashed border-[var(--hp-border)] py-2 text-sm text-[var(--hp-muted)] hover:border-[var(--hp-accent)] hover:text-[var(--hp-accent)] transition-colors"
       >+</button>
     </div><!-- end collapsible content -->
 

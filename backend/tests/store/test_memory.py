@@ -34,18 +34,20 @@ class TestInMemoryStore:
     def test_delete_nonexistent_room_is_safe(self):
         self.store.delete_room("ghost")  # should not raise
 
-    def test_expired_rooms_are_evicted(self):
+    @pytest.mark.anyio
+    async def test_expired_rooms_are_evicted(self):
         room = _make_room()
         self.store.save_room(room)
         # Backdate last activity beyond TTL
         room.last_activity_at = datetime.utcnow() - timedelta(hours=4)
-        self.store._evict_expired()
+        await self.store._evict_expired()
         assert self.store.get_room(room.id) is None
 
-    def test_active_rooms_survive_eviction(self):
+    @pytest.mark.anyio
+    async def test_active_rooms_survive_eviction(self):
         room = _make_room()
         self.store.save_room(room)
-        self.store._evict_expired()
+        await self.store._evict_expired()
         assert self.store.get_room(room.id) is not None
 
     def test_all_rooms(self):

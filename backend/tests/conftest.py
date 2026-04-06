@@ -10,8 +10,10 @@ from app.store.memory import store
 def clear_store():
     """Reset in-memory store between tests."""
     store._rooms.clear()
+    store._locks.clear()
     yield
     store._rooms.clear()
+    store._locks.clear()
     limiter._storage.reset()  # clear per-IP rate-limit counters
 
 

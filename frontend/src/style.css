@@ -1,3 +1,36 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ── Global brand tokens (light) ── */
+:root {
+  --hp-accent:        #C96B30;
+  --hp-accent-h:      #A85424;
+  --hp-accent-subtle: rgba(201, 107, 48, 0.08);
+  --hp-surface:       #FFFFFF;
+  --hp-border:        #DDD9CF;
+  --hp-text:          #1C1A17;
+  --hp-muted:         #8A8276;
+}
+/* ── Global brand tokens (dark) ── */
+.dark {
+  --hp-accent:        #E88050;
+  --hp-accent-h:      #F09060;
+  --hp-accent-subtle: rgba(232, 128, 80, 0.1);
+  --hp-surface:       #1E1C19;
+  --hp-border:        #2D2A26;
+  --hp-text:          #EDE9E3;
+  --hp-muted:         #7A7570;
+}
+
+/* ── Font utilities (avoids quoting issues in Tailwind arbitrary values) ── */
+.font-brand-display { font-family: 'Bricolage Grotesque', sans-serif; }
+.font-brand-body    { font-family: 'DM Sans', sans-serif; }
+.font-brand-mono    { font-family: 'JetBrains Mono', monospace; }
+
+/* ── Base defaults ── */
+html, body {
+  background-color: var(--hp-surface);
+  color: var(--hp-text);
+  font-family: 'DM Sans', sans-serif;
+}

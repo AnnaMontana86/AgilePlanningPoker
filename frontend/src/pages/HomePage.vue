@@ -1,79 +1,118 @@
 <template>
-  <main class="flex min-h-screen items-center justify-center p-4">
-    <div class="w-full max-w-md space-y-6">
-      <div class="text-center space-y-1">
-        <p class="text-xs font-semibold tracking-widest text-indigo-500 uppercase">Agile Estimation</p>
-        <h1 class="text-4xl font-extrabold bg-gradient-to-r from-indigo-600 to-purple-500 bg-clip-text text-transparent">
-          Planning Poker
-        </h1>
+  <main class="hp-root">
+    <!-- Atmospheric dot-grid -->
+    <div class="hp-grid-bg" aria-hidden="true" />
+
+    <div class="hp-layout">
+
+      <!-- ── FORM SIDE ── -->
+      <div class="hp-form-side">
+        <div class="hp-form-content">
+
+          <!-- Brand header -->
+          <header class="hp-header hp-rise" style="--hp-d:0s">
+            <div class="hp-badge">
+              <span class="hp-badge-pip" />
+              Agile Estimation
+            </div>
+            <h1 class="hp-headline">Planning<br><em>Poker</em></h1>
+            <p class="hp-tagline">Align your team. Ship with confidence.</p>
+          </header>
+
+          <!-- Nickname -->
+          <div class="hp-field hp-rise" style="--hp-d:0.08s">
+            <label class="hp-label" for="nickname">Your nickname</label>
+            <input
+              id="nickname"
+              v-model="nickname"
+              @input="nicknameError = ''"
+              type="text"
+              maxlength="32"
+              placeholder="Enter your nickname"
+              :class="['hp-input', { 'hp-input--error': nicknameError }]"
+            />
+            <p v-if="nicknameError" class="hp-error-msg">{{ nicknameError }}</p>
+          </div>
+
+          <!-- CTAs -->
+          <div class="hp-ctas hp-rise" style="--hp-d:0.16s">
+            <button @click="openCreate" class="hp-btn hp-btn--primary">
+              <svg xmlns="http://www.w3.org/2000/svg" class="hp-btn-ico" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
+              </svg>
+              Create a room
+            </button>
+            <button @click="openJoin" class="hp-btn hp-btn--ghost">
+              <svg xmlns="http://www.w3.org/2000/svg" class="hp-btn-ico" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path fill-rule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 001 1h12a1 1 0 001-1V7.414A1 1 0 0015.707 7l-4-4A1 1 0 0011 2.586V2H4a1 1 0 00-1 1zm9 1.414L14.586 7H12V4.414zM4 4h7v4a1 1 0 001 1h4v8H4V4z" clip-rule="evenodd"/>
+                <path d="M7 9a1 1 0 000 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7a1 1 0 10-2 0v2H7z"/>
+              </svg>
+              Join a room
+            </button>
+          </div>
+
+          <p v-if="error" class="hp-error-msg hp-error-msg--center">{{ error }}</p>
+
+        </div>
       </div>
 
-      <!-- Nickname -->
-      <section class="space-y-2">
-        <label class="block text-sm font-medium" for="nickname">Your nickname</label>
-        <input
-          id="nickname"
-          v-model="nickname"
-          @input="nicknameError = ''"
-          type="text"
-          maxlength="32"
-          placeholder="Enter your nickname"
-          :class="[
-            'w-full rounded-lg border bg-white dark:bg-gray-800 px-4 py-2 focus:outline-none focus:ring-2 transition-colors',
-            nicknameError
-              ? 'border-red-500 focus:ring-red-500'
-              : 'border-gray-300 dark:border-gray-600 focus:ring-indigo-500'
-          ]"
-        />
-        <p v-if="nicknameError" class="text-red-500 text-sm">{{ nicknameError }}</p>
-      </section>
-
-      <!-- Action Buttons -->
-      <div class="flex gap-4">
-        <button
-          @click="openCreate"
-          class="flex-1 flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-3 font-semibold text-white hover:bg-indigo-700 transition-colors"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
-          </svg>
-          Create a room
-        </button>
-        <button
-          @click="openJoin"
-          class="flex-1 flex items-center justify-center gap-2 rounded-xl border border-indigo-600 px-4 py-3 font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 001 1h12a1 1 0 001-1V7.414A1 1 0 0015.707 7l-4-4A1 1 0 0011 2.586V2H4a1 1 0 00-1 1zm9 1.414L14.586 7H12V4.414zM4 4h7v4a1 1 0 001 1h4v8H4V4z" clip-rule="evenodd" />
-            <path d="M7 9a1 1 0 000 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7a1 1 0 10-2 0v2H7z" />
-          </svg>
-          Join a room
-        </button>
+      <!-- ── VISUAL SIDE ── -->
+      <div class="hp-visual" aria-hidden="true">
+        <div class="hp-card-fan">
+          <!-- 3♣ -->
+          <div class="hp-card" style="--cr:-22deg;--ctx:-90px;--cty:35px;--cd:0.1s">
+            <span class="hp-c-corner">3<br>♣</span>
+            <span class="hp-c-big">3</span>
+            <span class="hp-c-suit">♣</span>
+            <span class="hp-c-corner hp-c-corner--br">3<br>♣</span>
+          </div>
+          <!-- 5♦ -->
+          <div class="hp-card" style="--cr:-9deg;--ctx:-32px;--cty:6px;--cd:0.2s">
+            <span class="hp-c-corner hp-c-red">5<br>♦</span>
+            <span class="hp-c-big">5</span>
+            <span class="hp-c-suit hp-c-red">♦</span>
+            <span class="hp-c-corner hp-c-corner--br hp-c-red">5<br>♦</span>
+          </div>
+          <!-- 8♥ -->
+          <div class="hp-card" style="--cr:5deg;--ctx:28px;--cty:-6px;--cd:0.3s">
+            <span class="hp-c-corner hp-c-red">8<br>♥</span>
+            <span class="hp-c-big">8</span>
+            <span class="hp-c-suit hp-c-red">♥</span>
+            <span class="hp-c-corner hp-c-corner--br hp-c-red">8<br>♥</span>
+          </div>
+          <!-- 13♠ — accent top card -->
+          <div class="hp-card hp-card--top" style="--cr:17deg;--ctx:80px;--cty:20px;--cd:0.4s">
+            <span class="hp-c-corner">13<br>♠</span>
+            <span class="hp-c-big hp-c-big--sm">13</span>
+            <span class="hp-c-suit">♠</span>
+            <span class="hp-c-corner hp-c-corner--br">13<br>♠</span>
+          </div>
+        </div>
+        <p class="hp-visual-label">Vote · Reveal · Align</p>
       </div>
 
-      <p v-if="error" class="text-red-500 text-sm text-center">{{ error }}</p>
+    </div><!-- /hp-layout -->
 
-      <!-- Legal footer -->
-      <div class="pt-2 text-center text-xs text-gray-400 dark:text-gray-500 space-x-2">
-        <button @click="openLegal('impressum')" class="hover:underline hover:text-gray-600 dark:hover:text-gray-300 transition-colors">Legal Notice</button>
-        <span aria-hidden="true">·</span>
-        <button @click="openLegal('privacy')" class="hover:underline hover:text-gray-600 dark:hover:text-gray-300 transition-colors">Privacy</button>
-        <span aria-hidden="true">·</span>
-        <button @click="openLegal('disclaimer')" class="hover:underline hover:text-gray-600 dark:hover:text-gray-300 transition-colors">Disclaimer</button>
-      </div>
-    </div>
+    <!-- ── Page footer ── -->
+    <footer class="hp-page-footer hp-rise" style="--hp-d:0.24s">
+      <button @click="openLegal('impressum')" class="hp-legal-link">Legal Notice</button>
+      <span aria-hidden="true">·</span>
+      <button @click="openLegal('privacy')" class="hp-legal-link">Privacy</button>
+      <span aria-hidden="true">·</span>
+      <button @click="openLegal('disclaimer')" class="hp-legal-link">Disclaimer</button>
+    </footer>
 
-    <!-- Create Room Dialog -->
+    <!-- ── Create Room Dialog ── -->
     <Teleport to="body">
       <div
         v-if="showCreate"
         class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
         @click.self="showCreate = false"
       >
-        <div class="w-full max-w-sm rounded-2xl bg-white dark:bg-gray-900 shadow-xl p-6 space-y-4">
+        <div class="w-full max-w-sm rounded-2xl bg-[var(--hp-surface)] shadow-xl p-6 space-y-4" style="color: var(--hp-text)">
           <div class="flex items-center justify-between">
             <h2 class="text-lg font-semibold">Create a room</h2>
-            <button @click="showCreate = false" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+            <button @click="showCreate = false" class="text-[var(--hp-muted)] hover:text-[var(--hp-text)] transition-colors">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                 <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
               </svg>
@@ -87,15 +126,17 @@
               maxlength="80"
               placeholder="Room name"
               :class="[
-                'w-full rounded-lg border bg-white dark:bg-gray-800 px-4 py-2 focus:outline-none focus:ring-2 transition-colors',
-                roomNameError ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-gray-600 focus:ring-indigo-500',
+                'w-full rounded-lg border bg-[var(--hp-surface)] px-4 py-2 focus:outline-none focus:ring-2 transition-colors',
+                roomNameError ? 'border-red-500 focus:ring-red-500' : 'border-[var(--hp-border)] focus:ring-[var(--hp-accent)]',
               ]"
+              :style="{ color: 'var(--hp-text)' }"
             />
             <p v-if="roomNameError" class="text-red-500 text-xs">{{ roomNameError }}</p>
           </div>
           <select
             v-model="selectedCardSet"
-            class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            class="w-full rounded-lg border border-[var(--hp-border)] bg-[var(--hp-surface)] px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[var(--hp-accent)]"
+            :style="{ color: 'var(--hp-text)' }"
           >
             <option value="">Select a card set</option>
             <option v-for="(cards, name) in cardSets" :key="name" :value="name">
@@ -109,19 +150,20 @@
               @input="customCardError = ''"
               type="text"
               placeholder="e.g. 1, 2, 3, 5, 8, 13, ?"
-              class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+              class="w-full rounded-lg border border-[var(--hp-border)] bg-[var(--hp-surface)] px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[var(--hp-accent)] text-sm"
+              :style="{ color: 'var(--hp-text)' }"
             />
             <p v-if="customCardError" class="text-red-500 text-xs">{{ customCardError }}</p>
-            <p v-else-if="parsedCustomCards.length" class="text-gray-500 dark:text-gray-400 text-xs">
+            <p v-else-if="parsedCustomCards.length" class="text-[var(--hp-muted)] text-xs">
               {{ parsedCustomCards.length }} card{{ parsedCustomCards.length !== 1 ? 's' : '' }}:
               {{ parsedCustomCards.join(', ') }}
             </p>
-            <p v-else class="text-gray-400 dark:text-gray-500 text-xs">Enter comma-separated values (2–20)</p>
+            <p v-else class="text-[var(--hp-muted)] text-xs">Enter comma-separated values (2–20)</p>
           </div>
           <button
             :disabled="!canCreate"
             @click="createRoom"
-            class="w-full rounded-lg bg-indigo-600 px-4 py-2 font-semibold text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            class="w-full rounded-lg bg-[var(--hp-accent)] px-4 py-2 font-semibold text-white hover:bg-[var(--hp-accent-h)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             Create Room
           </button>
@@ -129,7 +171,7 @@
       </div>
     </Teleport>
 
-    <!-- Legal Modal -->
+    <!-- ── Legal Modal ── -->
     <Teleport to="body">
       <div
         v-if="legalOpen"
@@ -315,17 +357,17 @@
       </div>
     </Teleport>
 
-    <!-- Join Room Dialog -->
+    <!-- ── Join Room Dialog ── -->
     <Teleport to="body">
       <div
         v-if="showJoin"
         class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
         @click.self="showJoin = false"
       >
-        <div class="w-full max-w-sm rounded-2xl bg-white dark:bg-gray-900 shadow-xl p-6 space-y-4">
+        <div class="w-full max-w-sm rounded-2xl bg-[var(--hp-surface)] shadow-xl p-6 space-y-4" style="color: var(--hp-text)">
           <div class="flex items-center justify-between">
             <h2 class="text-lg font-semibold">Join a room</h2>
-            <button @click="showJoin = false" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+            <button @click="showJoin = false" class="text-[var(--hp-muted)] hover:text-[var(--hp-text)] transition-colors">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                 <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
               </svg>
@@ -335,12 +377,13 @@
             v-model="joinCode"
             type="text"
             placeholder="Room ID or paste invite link"
-            class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            class="w-full rounded-lg border border-[var(--hp-border)] bg-[var(--hp-surface)] px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[var(--hp-accent)]"
+            :style="{ color: 'var(--hp-text)' }"
           />
           <button
             :disabled="!canJoin"
             @click="joinRoom"
-            class="w-full rounded-lg border border-indigo-600 px-4 py-2 font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            class="w-full rounded-lg border border-[var(--hp-accent)] px-4 py-2 font-semibold text-[var(--hp-accent)] hover:bg-[var(--hp-accent)]/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             Join Room
           </button>
@@ -502,3 +545,372 @@ async function joinRoom() {
   }
 }
 </script>
+
+<style scoped>
+/* ─── Design tokens (light) ─── */
+.hp-root {
+  --accent:      #C96B30;
+  --accent-h:    #A85424;
+  --surface:     #FFFFFF;
+  --border:      #DDD9CF;
+  --text:        #1C1A17;
+  --muted:       #8A8276;
+  --bg:          #F5F3EF;
+  --card-sh:     0 8px 28px rgba(0,0,0,.09), 0 2px 8px rgba(0,0,0,.06);
+  --card-sh-lg:  0 20px 56px rgba(0,0,0,.13), 0 6px 18px rgba(0,0,0,.08);
+  --ease-out:    cubic-bezier(.16,1,.3,1);
+}
+/* ─── Dark mode overrides ─── */
+:global(.dark) .hp-root {
+  --accent:      #E88050;
+  --accent-h:    #F09060;
+  --surface:     #1E1C19;
+  --border:      #2D2A26;
+  --text:        #EDE9E3;
+  --muted:       #7A7570;
+  --bg:          #111009;
+  --card-sh:     0 8px 28px rgba(0,0,0,.4),  0 2px 8px rgba(0,0,0,.25);
+  --card-sh-lg:  0 20px 56px rgba(0,0,0,.6), 0 6px 18px rgba(0,0,0,.4);
+}
+
+/* ─── Root shell ─── */
+.hp-root {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: 'DM Sans', system-ui, sans-serif;
+  overflow: hidden;
+}
+
+/* ─── Dot-grid atmosphere ─── */
+.hp-grid-bg {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle, var(--border) 1.5px, transparent 1.5px);
+  background-size: 28px 28px;
+  opacity: .6;
+  pointer-events: none;
+}
+
+/* ─── Page grid ─── */
+.hp-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  flex: 1;
+  position: relative;
+  z-index: 1;
+}
+@media (max-width: 768px) {
+  .hp-layout               { grid-template-columns: 1fr; }
+  .hp-visual               { display: none; }
+  .hp-form-side            { justify-content: center; padding: 3rem 1.5rem; }
+}
+
+/* ─── Form column ─── */
+.hp-form-side {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 4rem 3.5rem 4rem 2rem;
+}
+.hp-form-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  width: 100%;
+  max-width: 420px;
+}
+
+/* ─── Brand header ─── */
+.hp-header { display: flex; flex-direction: column; gap: .65rem; }
+
+.hp-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: .45rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: .68rem;
+  font-weight: 500;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: .28rem .75rem .28rem .5rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  width: fit-content;
+  background: var(--surface);
+}
+.hp-badge-pip {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #22c55e;
+  flex-shrink: 0;
+  animation: hp-pulse 2.4s ease-in-out infinite;
+}
+@keyframes hp-pulse {
+  0%, 100% { box-shadow: 0 0 0 0   rgba(34,197,94,.5); }
+  55%       { box-shadow: 0 0 0 5px rgba(34,197,94,0);  }
+}
+
+.hp-headline {
+  font-family: 'Bricolage Grotesque', system-ui, sans-serif;
+  font-size: clamp(2.8rem, 4.5vw, 4.25rem);
+  font-weight: 800;
+  line-height: 1.0;
+  letter-spacing: -.035em;
+  color: var(--text);
+  margin: 0;
+}
+.hp-headline em {
+  font-style: italic;
+  color: var(--accent);
+}
+
+.hp-tagline {
+  font-size: .95rem;
+  color: var(--muted);
+  line-height: 1.55;
+  font-weight: 400;
+  margin: 0;
+}
+
+/* ─── Nickname field ─── */
+.hp-field { display: flex; flex-direction: column; gap: .4rem; }
+
+.hp-label {
+  font-size: .72rem;
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: .07em;
+  text-transform: uppercase;
+}
+
+.hp-input {
+  width: 100%;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  padding: .75rem 1rem;
+  font-size: 1rem;
+  font-family: inherit;
+  outline: none;
+  transition: border-color .15s ease, box-shadow .15s ease;
+  box-sizing: border-box;
+}
+.hp-input::placeholder { color: var(--muted); opacity: .65; }
+.hp-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(201,107,48,.18);
+}
+:global(.dark) .hp-input:focus {
+  box-shadow: 0 0 0 3px rgba(232,128,80,.18);
+}
+.hp-input--error              { border-color: #ef4444; }
+.hp-input--error:focus        { box-shadow: 0 0 0 3px rgba(239,68,68,.18); }
+
+.hp-error-msg               { font-size: .82rem; color: #ef4444; }
+.hp-error-msg--center       { text-align: center; }
+
+/* ─── CTA buttons ─── */
+.hp-ctas {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: .75rem;
+}
+.hp-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .45rem;
+  padding: .8rem 1.2rem;
+  border-radius: 10px;
+  font-size: .92rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background .15s ease, border-color .15s ease,
+              color .15s ease, transform .1s ease, box-shadow .15s ease;
+  white-space: nowrap;
+  border: 1.5px solid transparent;
+}
+.hp-btn:active { transform: scale(.97); }
+.hp-btn-ico    { width: 17px; height: 17px; flex-shrink: 0; }
+
+.hp-btn--primary {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+  box-shadow: 0 4px 16px rgba(201,107,48,.3);
+}
+.hp-btn--primary:hover {
+  background: var(--accent-h);
+  border-color: var(--accent-h);
+  box-shadow: 0 6px 22px rgba(201,107,48,.4);
+}
+:global(.dark) .hp-btn--primary {
+  box-shadow: 0 4px 16px rgba(232,128,80,.25);
+}
+:global(.dark) .hp-btn--primary:hover {
+  box-shadow: 0 6px 22px rgba(232,128,80,.35);
+}
+
+.hp-btn--ghost {
+  background: transparent;
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.hp-btn--ghost:hover {
+  background: rgba(201,107,48,.08);
+}
+:global(.dark) .hp-btn--ghost:hover {
+  background: rgba(232,128,80,.1);
+}
+
+/* ─── Page footer (centered, full-width) ─── */
+.hp-page-footer {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+  padding: 1rem 1.5rem 1.5rem;
+  color: var(--muted);
+  font-size: .75rem;
+}
+
+.hp-legal-link {
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: inherit;
+  font-family: inherit;
+  cursor: pointer;
+  padding: 0;
+  transition: color .15s ease;
+}
+.hp-legal-link:hover { color: var(--text); text-decoration: underline; }
+
+/* ─── Visual column ─── */
+.hp-visual {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem 4rem 3.5rem;
+  gap: 2.5rem;
+}
+
+/* ─── Card fan ─── */
+.hp-card-fan {
+  position: relative;
+  width: 320px;
+  height: 290px;
+}
+
+.hp-card {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 128px;
+  height: 188px;
+  margin: -94px 0 0 -64px;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--card-sh-lg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: .1rem;
+  padding: .6rem;
+
+  translate: var(--ctx, 0px) var(--cty, 0px);
+  rotate: var(--cr, 0deg);
+
+  animation: hp-card-in .75s var(--ease-out) both;
+  animation-delay: var(--cd, 0s);
+}
+.hp-card--top {
+  background: var(--accent);
+  border-color: transparent;
+}
+.hp-card--top .hp-c-corner,
+.hp-card--top .hp-c-big,
+.hp-card--top .hp-c-suit { color: #fff !important; }
+
+@keyframes hp-card-in {
+  from {
+    opacity: 0;
+    scale: .84;
+    translate: var(--ctx, 0px) calc(var(--cty, 0px) + 55px);
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+    translate: var(--ctx, 0px) var(--cty, 0px);
+  }
+}
+
+/* Card internals */
+.hp-c-corner {
+  position: absolute;
+  top: .55rem;
+  left: .65rem;
+  font-size: .6rem;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--text);
+  text-align: center;
+  font-family: 'Bricolage Grotesque', system-ui, sans-serif;
+}
+.hp-c-corner--br {
+  top: auto;
+  left: auto;
+  bottom: .55rem;
+  right: .65rem;
+  transform: rotate(180deg);
+}
+.hp-c-big {
+  font-size: 3.6rem;
+  font-weight: 800;
+  font-family: 'Bricolage Grotesque', system-ui, sans-serif;
+  color: var(--text);
+  line-height: 1;
+  letter-spacing: -.04em;
+}
+.hp-c-big--sm { font-size: 2.6rem; }
+.hp-c-suit {
+  font-size: 1.35rem;
+  line-height: 1;
+  color: var(--text);
+  margin-top: .05rem;
+}
+.hp-c-red                  { color: #dc2626 !important; }
+:global(.dark) .hp-c-red  { color: #f87171 !important; }
+
+/* Visual caption */
+.hp-visual-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: .68rem;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* ─── Entrance animation ─── */
+.hp-rise {
+  animation: hp-rise-in .6s var(--ease-out) both;
+  animation-delay: var(--hp-d, 0s);
+}
+@keyframes hp-rise-in {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+</style>

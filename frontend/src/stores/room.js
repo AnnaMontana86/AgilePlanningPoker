@@ -86,6 +86,9 @@ export const useRoomStore = defineStore('room', () => {
       )
       // Increment so RoomPage watchers can reset myVote without depending on round number.
       votesResetCount.value++
+    } else if (type === 'participant_promoted') {
+      const p = room.value.participants[data.participant_id]
+      if (p) p.is_owner = true
     } else if (type === 'participant_suspended') {
       const p = room.value.participants[data.participant_id]
       if (p) { p.suspended = true; p.vote = null }

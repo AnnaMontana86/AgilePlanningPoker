@@ -13,6 +13,7 @@ export default defineConfig({
     },
   },
   test: {
+    include: ['tests/unit/**/*.{test,spec}.{js,ts}'],
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./tests/unit/setup.js'],

@@ -82,3 +82,85 @@ class TestDuplicateNickname:
         room = (await client.get(f"/api/rooms/{room_id}")).json()
         nicknames = [p["nickname"] for p in room["participants"].values()]
         assert "Super Super Bob" in nicknames
+
+
+class TestPromoteParticipant:
+    async def test_owner_can_promote_participant(self, client, room_with_owner):
+        room_id, token, owner_id = room_with_owner
+        join = await client.post(f"/api/rooms/{room_id}/join", json={"nickname": "Bob"})
+        bob_id = join.json()["participant_id"]
+        resp = await client.post(
+            f"/api/rooms/{room_id}/participants/{bob_id}/promote",
+            json={"token": token},
+        )
+        assert resp.status_code == 200
+        room = (await client.get(f"/api/rooms/{room_id}")).json()
+        assert room["participants"][bob_id]["is_owner"] is True
+        assert room["participants"][owner_id]["is_owner"] is True
+
+    async def test_cannot_promote_already_owner(self, client, room_with_owner):
+        room_id, token, owner_id = room_with_owner
+        resp = await client.post(
+            f"/api/rooms/{room_id}/participants/{owner_id}/promote",
+            json={"token": token},
+        )
+        assert resp.status_code == 400
+
+    async def test_cannot_promote_nonexistent_participant(self, client, room_with_owner):
+        room_id, token, _ = room_with_owner
+        resp = await client.post(
+            f"/api/rooms/{room_id}/participants/fake-id/promote",
+            json={"token": token},
+        )
+        assert resp.status_code == 404
+
+    async def test_wrong_token_returns_403(self, client, room_with_owner):
+        room_id, _, _ = room_with_owner
+        join = await client.post(f"/api/rooms/{room_id}/join", json={"nickname": "Bob"})
+        bob_id = join.json()["participant_id"]
+        resp = await client.post(
+            f"/api/rooms/{room_id}/participants/{bob_id}/promote",
+            json={"token": "wrong-token"},
+        )
+        assert resp.status_code == 403
+
+    async def test_co_owner_can_also_promote(self, client, room_with_owner):
+        room_id, token, owner_id = room_with_owner
+        join_bob = await client.post(f"/api/rooms/{room_id}/join", json={"nickname": "Bob"})
+        bob_id = join_bob.json()["participant_id"]
+        bob_token = join_bob.json()["token"]
+        join_carol = await client.post(f"/api/rooms/{room_id}/join", json={"nickname": "Carol"})
+        carol_id = join_carol.json()["participant_id"]
+        # promote Bob to co-owner
+        await client.post(
+            f"/api/rooms/{room_id}/participants/{bob_id}/promote",
+            json={"token": token},
+        )
+        # Bob (now co-owner) promotes Carol
+        resp = await client.post(
+            f"/api/rooms/{room_id}/participants/{carol_id}/promote",
+            json={"token": bob_token},
+        )
+        assert resp.status_code == 200
+        room = (await client.get(f"/api/rooms/{room_id}")).json()
+        assert room["participants"][carol_id]["is_owner"] is True
+
+    async def test_owner_leaving_does_not_transfer_when_co_owner_exists(self, client, room_with_owner):
+        room_id, token, owner_id = room_with_owner
+        join = await client.post(f"/api/rooms/{room_id}/join", json={"nickname": "Bob"})
+        bob_id = join.json()["participant_id"]
+        # promote Bob to co-owner
+        await client.post(
+            f"/api/rooms/{room_id}/participants/{bob_id}/promote",
+            json={"token": token},
+        )
+        # original owner leaves
+        resp = await client.post(f"/api/rooms/{room_id}/leave", json={
+            "participant_id": owner_id,
+            "token": token,
+        })
+        assert resp.status_code == 200
+        room = (await client.get(f"/api/rooms/{room_id}")).json()
+        assert owner_id not in room["participants"]
+        # Bob keeps his owner status — no unwanted transfer
+        assert room["participants"][bob_id]["is_owner"] is True

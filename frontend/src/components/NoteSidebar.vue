@@ -2,17 +2,17 @@
   <aside
     v-if="isOwner || roomStore.room?.note"
     :class="[
-      'flex flex-col border-b border-gray-200 dark:border-gray-700 lg:border-b-0 lg:flex-shrink-0 order-first',
+      'flex flex-col border-b border-[var(--hp-border)] bg-[var(--hp-surface)] lg:border-b-0 lg:border-r lg:flex-shrink-0 order-first',
       noteOpen ? 'lg:w-52 xl:w-64' : 'lg:w-10',
     ]"
   >
     <!-- Header row: label + owner edit + toggle -->
     <div class="flex items-center gap-2 px-4 py-4">
-      <span v-if="noteOpen" class="flex-1 text-sm font-medium text-gray-500 uppercase tracking-wide">Note</span>
+      <span v-if="noteOpen" class="flex-1 text-xs font-semibold font-brand-display text-[var(--hp-muted)] uppercase tracking-widest">Note</span>
       <button
         v-if="isOwner && noteOpen && !noteEditing"
         @click="startEditNote"
-        class="rounded p-1 text-gray-400 hover:text-amber-500 transition-colors"
+        class="rounded p-1 text-[var(--hp-muted)] hover:text-[var(--hp-accent)] transition-colors"
         title="Edit note"
       >
         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
@@ -23,7 +23,7 @@
       <button
         @click="noteOpen = !noteOpen"
         :title="noteOpen ? 'Hide note' : 'Show note'"
-        class="ml-auto rounded p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+        class="ml-auto rounded p-1 text-[var(--hp-muted)] hover:text-[var(--hp-text)] transition-colors"
       >
         <svg v-if="noteOpen" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
           <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
@@ -47,25 +47,25 @@
         <!-- Drop-zone overlay -->
         <div
           v-if="isDragOver"
-          class="absolute inset-0 z-10 flex items-center justify-center rounded-lg border-2 border-dashed border-amber-400 bg-amber-50/80 dark:bg-amber-900/40 pointer-events-none"
+          class="absolute inset-0 z-10 flex items-center justify-center rounded-lg border-2 border-dashed border-[var(--hp-accent)] bg-[var(--hp-accent-subtle)] pointer-events-none"
         >
-          <span class="text-sm font-medium text-amber-600 dark:text-amber-300">Drop image here</span>
+          <span class="text-sm font-medium text-[var(--hp-accent)]">Drop image here</span>
         </div>
-        <p v-if="uploading" class="text-xs text-gray-400">Uploading image…</p>
+        <p v-if="uploading" class="text-xs text-[var(--hp-muted)]">Uploading image…</p>
         <textarea
           v-model="noteDraft"
           rows="8"
           placeholder="Write a note for all participants… (markdown supported, drop images here)"
-          class="w-full rounded-lg border border-amber-300 dark:border-amber-700 bg-white dark:bg-gray-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 resize-y"
+          class="w-full rounded-lg border border-[var(--hp-border)] bg-[var(--hp-surface)] text-[var(--hp-text)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--hp-accent)] focus:border-[var(--hp-accent)] resize-y placeholder:text-[var(--hp-muted)]"
         />
         <div class="flex gap-2 justify-end">
           <button
             @click="cancelNote"
-            class="rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-1.5 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            class="rounded-lg border border-[var(--hp-border)] text-[var(--hp-muted)] px-3 py-1.5 text-sm hover:bg-[var(--hp-accent-subtle)] transition-colors"
           >Cancel</button>
           <button
             @click="saveNote"
-            class="rounded-lg bg-amber-500 px-3 py-1.5 text-sm font-semibold text-white hover:bg-amber-600 transition-colors"
+            class="rounded-lg bg-[var(--hp-accent)] px-3 py-1.5 text-sm font-semibold text-white hover:bg-[var(--hp-accent-h)] transition-colors"
           >Save</button>
         </div>
       </div>
@@ -74,7 +74,7 @@
         <button
           v-if="isOwner && !roomStore.room?.note"
           @click="startEditNote"
-          class="text-sm text-gray-400 dark:text-gray-500 hover:text-amber-500 dark:hover:text-amber-400 transition-colors"
+          class="text-sm text-[var(--hp-muted)] hover:text-[var(--hp-accent)] transition-colors"
         >Add a note for all participants…</button>
         <div
           v-else-if="roomStore.room?.note"
@@ -145,13 +145,15 @@ function handleDragLeave() {
 :deep(.prose img) {
   display: inline-block;
   max-height: 80px;
+  max-width: 100%;
   width: auto;
   border-radius: 4px;
   cursor: zoom-in;
-  transition: max-height 0.2s ease, box-shadow 0.2s ease;
+  transition: max-height 0.25s ease, max-width 0.25s ease, box-shadow 0.25s ease;
 }
 :deep(.prose img:hover) {
-  max-height: 600px;
+  max-height: none;
+  max-width: none;
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.25);
   position: relative;
   z-index: 20;

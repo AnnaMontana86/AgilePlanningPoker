@@ -4,7 +4,7 @@
 
       <!-- Theme toggle (hidden on room page — shown in room toolbar instead) -->
       <button
-        v-if="route.name !== 'room'"
+        v-if="route.name !== 'room' && route.name !== 'home'"
         @click="themeStore.toggle()"
         class="fixed top-4 right-4 z-50 rounded-full p-2 bg-white dark:bg-gray-800 shadow-md hover:shadow-lg border border-gray-200 dark:border-gray-700 transition-all"
         :aria-label="themeStore.isDark ? 'Switch to light mode' : 'Switch to dark mode'"
