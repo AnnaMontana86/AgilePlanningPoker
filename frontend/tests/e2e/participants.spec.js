@@ -37,11 +37,14 @@ test.describe('Participant management', () => {
     await ownerPage.goto(`/room/${roomId}`)
     await expect(ownerPage.getByText('Bob')).toBeVisible()
 
-    await ownerPage.getByTitle('Suspend participant').click()
+    const bobRow = ownerPage.locator('li', { hasText: 'Bob' })
+    await bobRow.hover()
+    await bobRow.getByText('Suspend').click()
 
-    // Badge appears and button becomes disabled
-    await expect(ownerPage.getByText('suspended')).toBeVisible()
-    await expect(ownerPage.getByTitle('Already suspended')).toBeDisabled()
+    // Badge appears and menu item becomes disabled
+    await expect(ownerPage.getByText('suspended', { exact: true })).toBeVisible()
+    await bobRow.hover()
+    await expect(bobRow.getByText('Already suspended')).toBeDisabled()
 
     await ownerCtx.close()
   })

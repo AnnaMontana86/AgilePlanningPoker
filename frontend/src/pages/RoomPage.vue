@@ -159,7 +159,7 @@
       <main class="flex-1 flex flex-col lg:flex-row">
 
         <!-- ── Note sidebar (left on desktop, top on mobile) ── -->
-        <NoteSidebar :isOwner="isOwner" />
+        <NoteSidebar :isOwner="isOwner || isCoOwner" />
 
         <!-- ── Primary column ── -->
         <div class="flex-1 flex flex-col min-w-0">
@@ -190,9 +190,11 @@
               </div>
             </div>
 
-            <!-- Owner action (centered) -->
-            <div v-if="isOwner" class="flex justify-center gap-3">
+            <!-- Owner / co-owner actions (centered) -->
+            <div v-if="isOwner || isCoOwner" class="flex justify-center gap-3">
+              <!-- Focus Music: owner only -->
               <div
+                v-if="isOwner"
                 class="relative"
                 data-testid="thinking-music-wrapper"
                 @mouseenter="onMusicWrapperEnter"
@@ -226,6 +228,7 @@
                   <span class="text-xs">🔊</span>
                 </div>
               </div>
+              <!-- Reveal Cards: owner or co-owner -->
               <button
                 v-if="!roomStore.isRevealed"
                 @click="reveal"
@@ -234,7 +237,8 @@
               >
                 Reveal Cards
               </button>
-              <template v-if="roomStore.isRevealed">
+              <!-- Next Topic / Revote: owner only -->
+              <template v-if="roomStore.isRevealed && isOwner">
                 <button
                   @click="newRound"
                   class="rounded-lg bg-[var(--hp-accent)] px-8 py-2.5 font-semibold text-white hover:bg-[var(--hp-accent-h)] transition-colors"
@@ -258,7 +262,7 @@
                   v-for="p in roomStore.participants"
                   :key="p.id"
                   :class="[
-                    'flex items-center justify-between rounded-xl border bg-[var(--hp-surface)] px-4 py-3 min-w-[10rem] transition-all duration-200',
+                    'relative group flex items-center justify-between rounded-xl border bg-[var(--hp-surface)] px-4 py-3 min-w-[10rem] transition-all duration-200',
                     participantBorderClass(p),
                   ]"
                 >
@@ -266,6 +270,7 @@
                     <span v-if="p.emoji" class="text-lg leading-none">{{ p.emoji }}</span>
                     {{ p.nickname }}
                     <span v-if="p.is_owner" class="ml-1 text-xs text-[var(--hp-accent)] font-brand-mono">owner</span>
+                    <span v-else-if="p.is_co_owner" class="ml-1 text-xs text-[var(--hp-accent)]/70 font-brand-mono">co-owner</span>
                     <span v-if="p.suspended" class="ml-1 text-xs text-yellow-500 dark:text-yellow-400">suspended</span>
                   </span>
                   <span class="flex items-center gap-3">
@@ -274,29 +279,35 @@
                       class="text-xs font-semibold text-orange-500">▲</span>
                     <span v-if="roomStore.isRevealed && voteExtremes.lowest.has(p.id)"
                       class="text-xs font-semibold text-blue-500">▼</span>
+                  </span>
+                  <!-- Hover dropdown: shown when owner/co-owner has actions for this participant -->
+                  <div
+                    v-if="hasActionsFor(p)"
+                    class="absolute left-0 top-full z-20 mt-1 w-44 rounded-lg border border-[var(--hp-border)] bg-[var(--hp-surface)] shadow-lg py-1 invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all duration-150 pointer-events-none group-hover:pointer-events-auto"
+                  >
                     <button
-                      v-if="isOwner && !p.is_owner"
+                      v-if="(isOwner && !p.is_owner) || (isCoOwner && !p.is_owner && !p.is_co_owner)"
                       @click="suspend(p.id)"
-                      :title="p.suspended ? 'Already suspended' : 'Suspend participant'"
                       :disabled="p.suspended"
-                      class="text-[var(--hp-muted)] hover:text-yellow-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                      class="flex w-full items-center gap-2 px-3 py-2 text-sm text-left text-[var(--hp-text)] hover:bg-[var(--hp-accent-subtle)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0 text-yellow-500" viewBox="0 0 24 24" fill="currentColor">
                         <rect x="6" y="4" width="4" height="16" rx="1"/>
                         <rect x="14" y="4" width="4" height="16" rx="1"/>
                       </svg>
+                      {{ p.suspended ? 'Already suspended' : 'Suspend' }}
                     </button>
                     <button
-                      v-if="isOwner && !p.is_owner"
+                      v-if="isOwner && !p.is_owner && !p.is_co_owner"
                       @click="promote(p.id)"
-                      title="Make owner"
-                      class="text-[var(--hp-muted)] hover:text-[var(--hp-accent)] transition-colors"
+                      class="flex w-full items-center gap-2 px-3 py-2 text-sm text-left text-[var(--hp-text)] hover:bg-[var(--hp-accent-subtle)] transition-colors"
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0 text-[var(--hp-accent)]" viewBox="0 0 20 20" fill="currentColor">
                         <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                       </svg>
+                      Make co-owner
                     </button>
-                  </span>
+                  </div>
                 </li>
               </ul>
               <!-- Results after reveal -->
@@ -335,7 +346,7 @@
         </div>
 
         <!-- ── Topics sidebar (right on desktop, bottom on mobile) ── -->
-        <TopicsSidebar :isOwner="isOwner" />
+        <TopicsSidebar :isOwner="isOwner" :canEdit="isOwner || isCoOwner" />
 
       </main>
 
@@ -427,6 +438,11 @@ const isOwner = computed(() => {
   return me?.is_owner ?? false
 })
 
+const isCoOwner = computed(() => {
+  const me = roomStore.room?.participants?.[userStore.participantId]
+  return me?.is_co_owner ?? false
+})
+
 const isSuspended = computed(() => {
   const me = roomStore.room?.participants?.[userStore.participantId]
   return me?.suspended ?? false
@@ -496,6 +512,12 @@ async function retry() {
 }
 
 // Participant management
+function hasActionsFor(p) {
+  const canSuspend = (isOwner.value && !p.is_owner) || (isCoOwner.value && !p.is_owner && !p.is_co_owner)
+  const canPromote = isOwner.value && !p.is_owner && !p.is_co_owner
+  return canSuspend || canPromote
+}
+
 async function suspend(participantId) {
   try {
     await apiFetch(`/api/rooms/${roomId}/participants/${participantId}/suspend`, 'POST')
@@ -513,10 +535,11 @@ async function leaveRoom() {
     await apiFetch(`/api/rooms/${roomId}/leave`, 'POST', {
       participant_id: userStore.participantId,
     })
-  } finally {
     roomStore.clear()
     userStore.clearSession()
     router.push({ name: 'home' })
+  } catch (e) {
+    error.value = e.message
   }
 }
 

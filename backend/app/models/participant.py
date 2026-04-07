@@ -12,6 +12,7 @@ class Participant(BaseModel):
     token: str = Field(default_factory=lambda: str(uuid.uuid4()), exclude=True)
     nickname: str = Field(..., min_length=1, max_length=32)
     is_owner: bool = False
+    is_co_owner: bool = False
     vote: str | None = None
     emoji: str | None = None
     suspended: bool = False

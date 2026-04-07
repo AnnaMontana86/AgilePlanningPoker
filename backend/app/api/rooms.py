@@ -197,6 +197,14 @@ ALLOWED_EMOJIS = {"🤔", "😄", "😢", "❤️", "☕", "🍺"}
 # Helpers
 # ---------------------------------------------------------------------------
 
+def _get_privileged_caller(room, token: str):
+    """Return the participant if they are the owner or a co-owner with the given token."""
+    return next(
+        (p for p in room.participants.values() if (p.is_owner or p.is_co_owner) and p.token == token),
+        None,
+    )
+
+
 def _get_room_or_404(room_id: str) -> Room:
     room = store.get_room(room_id)
     if not room:
@@ -287,9 +295,9 @@ async def vote(request: Request, room_id: str, req: VoteRequest):
 @limiter.limit("60/minute")
 async def reveal(request: Request, room_id: str, req: OwnerActionRequest):
     room = _get_room_or_404(room_id)
-    owner = next((p for p in room.participants.values() if p.is_owner and p.token == req.token), None)
+    owner = _get_privileged_caller(room, req.token)
     if not owner:
-        raise HTTPException(status_code=403, detail="Only the room owner can reveal cards")
+        raise HTTPException(status_code=403, detail="Only the room owner or a co-owner can reveal cards")
     if room.current_round.revealed:
         raise HTTPException(status_code=409, detail="Round already revealed")
     room.current_round.revealed = True
@@ -306,6 +314,8 @@ async def new_round(request: Request, room_id: str, req: OwnerActionRequest):
     owner = next((p for p in room.participants.values() if p.is_owner and p.token == req.token), None)
     if not owner:
         raise HTTPException(status_code=403, detail="Only the room owner can start a new round")
+    if not room.current_round.revealed:
+        raise HTTPException(status_code=409, detail="Cannot advance to next topic before revealing cards")
     # Save estimates to current topic before advancing
     estimated_topic = None
     if room.topics and room.current_topic_index < len(room.topics):
@@ -361,9 +371,9 @@ async def retry_round(request: Request, room_id: str, req: OwnerActionRequest):
 @limiter.limit("60/minute")
 async def add_topic(request: Request, room_id: str, req: AddTopicRequest):
     room = _get_room_or_404(room_id)
-    owner = next((p for p in room.participants.values() if p.is_owner and p.token == req.token), None)
+    owner = _get_privileged_caller(room, req.token)
     if not owner:
-        raise HTTPException(status_code=403, detail="Only the room owner can add topics")
+        raise HTTPException(status_code=403, detail="Only the room owner or a co-owner can add topics")
     if any(t.key == req.key for t in room.topics):
         raise HTTPException(status_code=409, detail="A topic with this key already exists in the room")
     topic = Topic(key=req.key, headline=req.headline, link=req.link)
@@ -379,7 +389,7 @@ async def reorder_topics(request: Request, room_id: str, req: ReorderTopicsReque
     room = _get_room_or_404(room_id)
     owner = next((p for p in room.participants.values() if p.is_owner and p.token == req.token), None)
     if not owner:
-        raise HTTPException(status_code=403, detail="Only the room owner can reorder topics")
+        raise HTTPException(status_code=403, detail="Only the room owner can reorder topics")  # owner-only
     topic_map = {t.id: t for t in room.topics}
     if set(req.topic_ids) != set(topic_map.keys()):
         raise HTTPException(status_code=400, detail="Invalid topic IDs")
@@ -393,9 +403,9 @@ async def reorder_topics(request: Request, room_id: str, req: ReorderTopicsReque
 @limiter.limit("60/minute")
 async def edit_topic(request: Request, room_id: str, topic_id: str, req: EditTopicRequest):
     room = _get_room_or_404(room_id)
-    owner = next((p for p in room.participants.values() if p.is_owner and p.token == req.token), None)
+    owner = _get_privileged_caller(room, req.token)
     if not owner:
-        raise HTTPException(status_code=403, detail="Only the room owner can edit topics")
+        raise HTTPException(status_code=403, detail="Only the room owner or a co-owner can edit topics")
     topic = next((t for t in room.topics if t.id == topic_id), None)
     if not topic:
         raise HTTPException(status_code=404, detail="Topic not found")
@@ -465,16 +475,18 @@ async def delete_topic(request: Request, room_id: str, topic_id: str, req: KickR
 @limiter.limit("30/minute")
 async def suspend_participant(request: Request, room_id: str, participant_id: str, req: OwnerActionRequest):
     room = _get_room_or_404(room_id)
-    owner = next((p for p in room.participants.values() if p.is_owner and p.token == req.token), None)
-    if not owner:
-        raise HTTPException(status_code=403, detail="Only the room owner can suspend participants")
+    caller = _get_privileged_caller(room, req.token)
+    if not caller:
+        raise HTTPException(status_code=403, detail="Only the room owner or a co-owner can suspend participants")
     if participant_id not in room.participants:
         raise HTTPException(status_code=404, detail="Participant not found")
-    if room.participants[participant_id].is_owner:
+    target = room.participants[participant_id]
+    if target.is_owner:
         raise HTTPException(status_code=400, detail="Cannot suspend the room owner")
-    participant = room.participants[participant_id]
-    participant.suspended = True
-    participant.vote = None
+    if not caller.is_owner and target.is_co_owner:
+        raise HTTPException(status_code=403, detail="Co-owners cannot suspend other co-owners")
+    target.suspended = True
+    target.vote = None
     store.save_room(room)
     await broadcaster.broadcast(room_id, "participant_suspended", {"participant_id": participant_id})
     return {"ok": True}
@@ -486,13 +498,13 @@ async def promote_participant(request: Request, room_id: str, participant_id: st
     room = _get_room_or_404(room_id)
     caller = next((p for p in room.participants.values() if p.is_owner and p.token == req.token), None)
     if not caller:
-        raise HTTPException(status_code=403, detail="Only a room owner can promote participants")
+        raise HTTPException(status_code=403, detail="Only the room owner can promote participants")
     if participant_id not in room.participants:
         raise HTTPException(status_code=404, detail="Participant not found")
     target = room.participants[participant_id]
-    if target.is_owner:
-        raise HTTPException(status_code=400, detail="Participant is already an owner")
-    target.is_owner = True
+    if target.is_owner or target.is_co_owner:
+        raise HTTPException(status_code=400, detail="Participant is already an owner or co-owner")
+    target.is_co_owner = True
     store.save_room(room)
     await broadcaster.broadcast(room_id, "participant_promoted", {"participant_id": participant_id})
     return {"ok": True}
@@ -542,8 +554,8 @@ async def start_timer(request: Request, room_id: str, req: TimerRequest):
         raise HTTPException(status_code=403, detail="Only the room owner can set the timer")
     if req.duration_seconds < 1:
         raise HTTPException(status_code=400, detail="Duration must be at least 1 second")
-    from datetime import datetime
-    room.timer_ends_at = datetime.utcnow() + timedelta(seconds=req.duration_seconds)
+    from datetime import datetime, timezone
+    room.timer_ends_at = datetime.now(timezone.utc) + timedelta(seconds=req.duration_seconds)
     store.save_room(room)
     ends_at = room.timer_ends_at.isoformat()
     await broadcaster.broadcast(room_id, "timer_started", {"ends_at": ends_at})
@@ -599,9 +611,9 @@ async def leave_room(request: Request, room_id: str, req: LeaveRequest):
 @limiter.limit("30/minute")
 async def update_note(request: Request, room_id: str, req: NoteRequest):
     room = _get_room_or_404(room_id)
-    owner = next((p for p in room.participants.values() if p.is_owner and p.token == req.token), None)
+    owner = _get_privileged_caller(room, req.token)
     if not owner:
-        raise HTTPException(status_code=403, detail="Only the room owner can update the note")
+        raise HTTPException(status_code=403, detail="Only the room owner or a co-owner can update the note")
     note = req.note.strip() if req.note else None
     room.note = note or None
     store.save_room(room)
@@ -613,9 +625,9 @@ async def update_note(request: Request, room_id: str, req: NoteRequest):
 @limiter.limit("20/minute")
 async def upload_image(request: Request, room_id: str, req: ImageUploadRequest):
     room = _get_room_or_404(room_id)
-    owner = next((p for p in room.participants.values() if p.is_owner and p.token == req.token), None)
+    owner = _get_privileged_caller(room, req.token)
     if not owner:
-        raise HTTPException(status_code=403, detail="Only the room owner can upload images")
+        raise HTTPException(status_code=403, detail="Only the room owner or a co-owner can upload images")
     if len(room.images) >= MAX_IMAGES_PER_ROOM:
         raise HTTPException(status_code=409, detail=f"Room already has {MAX_IMAGES_PER_ROOM} images")
     header, b64 = req.data_url.split(',', 1)

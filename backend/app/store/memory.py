@@ -1,6 +1,6 @@
 import asyncio
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from app.models.room import Room
 
@@ -51,7 +51,7 @@ class InMemoryStore:
             await self._evict_expired()
 
     async def _evict_expired(self) -> None:
-        cutoff = datetime.utcnow() - timedelta(hours=ROOM_TTL_HOURS)
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=ROOM_TTL_HOURS)
         expired = [
             room_id
             for room_id, room in self._rooms.items()

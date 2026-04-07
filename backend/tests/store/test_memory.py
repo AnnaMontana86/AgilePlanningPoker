@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -39,7 +39,7 @@ class TestInMemoryStore:
         room = _make_room()
         self.store.save_room(room)
         # Backdate last activity beyond TTL
-        room.last_activity_at = datetime.utcnow() - timedelta(hours=4)
+        room.last_activity_at = datetime.now(timezone.utc) - timedelta(hours=4)
         await self.store._evict_expired()
         assert self.store.get_room(room.id) is None
 

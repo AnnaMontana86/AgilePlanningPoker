@@ -49,8 +49,8 @@ class TestReveal:
         resp = await client.post(f"/api/rooms/{room_id}/reveal", json={"token": non_owner_token})
         assert resp.status_code == 403
 
-    async def test_promoted_co_owner_can_reveal(self, client, room_with_owner):
-        room_id, token, owner_id = room_with_owner
+    async def test_co_owner_can_reveal(self, client, room_with_owner):
+        room_id, token, _ = room_with_owner
         join = await client.post(f"/api/rooms/{room_id}/join", json={"nickname": "Bob"})
         bob_id = join.json()["participant_id"]
         bob_token = join.json()["token"]

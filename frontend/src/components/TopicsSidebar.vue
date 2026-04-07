@@ -1,6 +1,6 @@
 <template>
   <aside
-    v-if="roomStore.topics.length > 0 || isOwner"
+    v-if="roomStore.topics.length > 0 || isOwner || canEdit"
     :class="[
       'flex flex-col border-t border-[var(--hp-border)] bg-[var(--hp-surface)] lg:border-t-0 lg:border-l lg:flex-shrink-0',
       topicsOpen ? 'lg:w-[26.5rem] xl:w-[32rem]' : 'lg:w-10',
@@ -86,8 +86,9 @@
               class="rounded-full bg-green-100 dark:bg-green-900/40 px-1.5 py-0.5 text-xs font-medium"
             ><span class="text-green-700 dark:text-green-300">{{ e.value }}</span><span v-if="e.count > 1" class="text-[var(--hp-muted)]">({{ e.count }}x)</span></span>
           </span>
-          <div v-if="isOwner" class="flex items-center gap-1 shrink-0" @click.stop>
+          <div v-if="isOwner || canEdit" class="flex items-center gap-1 shrink-0" @click.stop>
             <button
+              v-if="canEdit"
               @click="openEditTopic(topic)"
               class="rounded p-1 text-[var(--hp-muted)] hover:text-[var(--hp-accent)] transition-colors"
               title="Edit topic"
@@ -97,6 +98,7 @@
               </svg>
             </button>
             <button
+              v-if="isOwner"
               @click="deleteTopic(topic.id)"
               class="rounded p-1 text-red-400 hover:text-red-600 transition-colors"
               title="Remove topic"
@@ -110,7 +112,7 @@
       </ol>
 
       <!-- Add topic inline form -->
-      <div v-if="isOwner && showAddTopic" class="mt-3 space-y-2">
+      <div v-if="canEdit && showAddTopic" class="mt-3 space-y-2">
         <div class="flex gap-2">
           <input
             v-model="newTopicKey"
@@ -155,7 +157,7 @@
 
       <!-- + button at bottom of topic list -->
       <button
-        v-if="isOwner && !showAddTopic"
+        v-if="canEdit && !showAddTopic"
         @click="showAddTopic = true"
         class="mt-3 w-full rounded-lg border-2 border-dashed border-[var(--hp-border)] py-2 text-sm text-[var(--hp-muted)] hover:border-[var(--hp-accent)] hover:text-[var(--hp-accent)] transition-colors"
       >+</button>
@@ -181,7 +183,7 @@ import { useTopics } from '../composables/useTopics'
 import { useVoteAnalysis } from '../composables/useVoteAnalysis'
 import EditTopicDialog from './EditTopicDialog.vue'
 
-const props = defineProps({ isOwner: Boolean })
+const props = defineProps({ isOwner: Boolean, canEdit: Boolean })
 
 const route = useRoute()
 const roomId = route.params.roomId

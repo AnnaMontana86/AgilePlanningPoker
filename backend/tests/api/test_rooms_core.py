@@ -85,7 +85,7 @@ class TestDuplicateNickname:
 
 
 class TestPromoteParticipant:
-    async def test_owner_can_promote_participant(self, client, room_with_owner):
+    async def test_owner_can_promote_participant_to_co_owner(self, client, room_with_owner):
         room_id, token, owner_id = room_with_owner
         join = await client.post(f"/api/rooms/{room_id}/join", json={"nickname": "Bob"})
         bob_id = join.json()["participant_id"]
@@ -95,13 +95,25 @@ class TestPromoteParticipant:
         )
         assert resp.status_code == 200
         room = (await client.get(f"/api/rooms/{room_id}")).json()
-        assert room["participants"][bob_id]["is_owner"] is True
+        assert room["participants"][bob_id]["is_co_owner"] is True
+        assert room["participants"][bob_id]["is_owner"] is False
         assert room["participants"][owner_id]["is_owner"] is True
 
     async def test_cannot_promote_already_owner(self, client, room_with_owner):
         room_id, token, owner_id = room_with_owner
         resp = await client.post(
             f"/api/rooms/{room_id}/participants/{owner_id}/promote",
+            json={"token": token},
+        )
+        assert resp.status_code == 400
+
+    async def test_cannot_promote_already_co_owner(self, client, room_with_owner):
+        room_id, token, _ = room_with_owner
+        join = await client.post(f"/api/rooms/{room_id}/join", json={"nickname": "Bob"})
+        bob_id = join.json()["participant_id"]
+        await client.post(f"/api/rooms/{room_id}/participants/{bob_id}/promote", json={"token": token})
+        resp = await client.post(
+            f"/api/rooms/{room_id}/participants/{bob_id}/promote",
             json={"token": token},
         )
         assert resp.status_code == 400
@@ -124,8 +136,8 @@ class TestPromoteParticipant:
         )
         assert resp.status_code == 403
 
-    async def test_co_owner_can_also_promote(self, client, room_with_owner):
-        room_id, token, owner_id = room_with_owner
+    async def test_co_owner_cannot_promote(self, client, room_with_owner):
+        room_id, token, _ = room_with_owner
         join_bob = await client.post(f"/api/rooms/{room_id}/join", json={"nickname": "Bob"})
         bob_id = join_bob.json()["participant_id"]
         bob_token = join_bob.json()["token"]
@@ -136,16 +148,14 @@ class TestPromoteParticipant:
             f"/api/rooms/{room_id}/participants/{bob_id}/promote",
             json={"token": token},
         )
-        # Bob (now co-owner) promotes Carol
+        # Bob (co-owner) tries to promote Carol — must be denied
         resp = await client.post(
             f"/api/rooms/{room_id}/participants/{carol_id}/promote",
             json={"token": bob_token},
         )
-        assert resp.status_code == 200
-        room = (await client.get(f"/api/rooms/{room_id}")).json()
-        assert room["participants"][carol_id]["is_owner"] is True
+        assert resp.status_code == 403
 
-    async def test_owner_leaving_does_not_transfer_when_co_owner_exists(self, client, room_with_owner):
+    async def test_owner_leaving_promotes_co_owner_to_full_owner(self, client, room_with_owner):
         room_id, token, owner_id = room_with_owner
         join = await client.post(f"/api/rooms/{room_id}/join", json={"nickname": "Bob"})
         bob_id = join.json()["participant_id"]
@@ -154,7 +164,7 @@ class TestPromoteParticipant:
             f"/api/rooms/{room_id}/participants/{bob_id}/promote",
             json={"token": token},
         )
-        # original owner leaves
+        # original owner leaves — Bob is the only remaining participant so he becomes full owner
         resp = await client.post(f"/api/rooms/{room_id}/leave", json={
             "participant_id": owner_id,
             "token": token,
@@ -162,5 +172,4 @@ class TestPromoteParticipant:
         assert resp.status_code == 200
         room = (await client.get(f"/api/rooms/{room_id}")).json()
         assert owner_id not in room["participants"]
-        # Bob keeps his owner status — no unwanted transfer
         assert room["participants"][bob_id]["is_owner"] is True
