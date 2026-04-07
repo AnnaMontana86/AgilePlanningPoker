@@ -17,9 +17,10 @@ export function useTimer(roomId, roomStore, userStore) {
 
   function startCountdownFrom(endsAt) {
     clearInterval(timerInterval)
-    // The server returns ISO strings without a trailing 'Z'; append it so
-    // Date parses the timestamp as UTC rather than local time.
-    const utcStr = endsAt.endsWith('Z') ? endsAt : endsAt + 'Z'
+    // Normalise to a parseable UTC string. Append 'Z' only for naive timestamps
+    // (no timezone info); leave strings that already carry 'Z' or '+HH:MM' alone.
+    const hasTimezone = /Z$|[+-]\d{2}:\d{2}$/.test(endsAt)
+    const utcStr = hasTimezone ? endsAt : endsAt + 'Z'
     const remaining = Math.round((new Date(utcStr) - Date.now()) / 1000)
     if (remaining <= 0) { timerRemaining.value = 0; return }
     timerRemaining.value = remaining

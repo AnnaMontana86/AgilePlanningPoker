@@ -83,7 +83,7 @@ class TestImageUpload:
     async def test_non_owner_cannot_upload(self, client, room_with_owner):
         room_id, _, _ = room_with_owner
         join = await client.post(f"/api/rooms/{room_id}/join", json={"nickname": "Bob"})
-        bob_token = join.json()["participant_id"]
+        bob_token = join.json()["token"]
         resp = await client.post(f"/api/rooms/{room_id}/images", json={"token": bob_token, "data_url": TINY_JPEG_DATA_URL})
         assert resp.status_code == 403
 

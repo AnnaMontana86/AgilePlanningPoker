@@ -1,7 +1,7 @@
 <template>
-  <div class="min-h-screen flex flex-col">
+  <div class="min-h-screen flex flex-col bg-[var(--hp-surface)] text-[var(--hp-text)] font-brand-body">
     <div v-if="!roomStore.room" class="flex flex-1 items-center justify-center">
-      <p class="text-gray-500">Loading room…</p>
+      <p class="text-[var(--hp-muted)]">Loading room…</p>
     </div>
 
     <!-- Join overlay for share-link visitors -->
@@ -9,39 +9,39 @@
       v-else-if="joining"
       class="flex flex-1 items-center justify-center px-4"
     >
-      <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 w-full max-w-sm space-y-5">
+      <div class="bg-[var(--hp-surface)] border border-[var(--hp-border)] rounded-2xl shadow-2xl p-8 w-full max-w-sm space-y-5">
         <div>
-          <h2 class="text-xl font-bold">Join {{ roomStore.room.name }}</h2>
-          <p class="text-sm text-gray-500 mt-1">Enter your nickname to join this room.</p>
+          <h2 class="text-xl font-bold font-brand-display text-[var(--hp-text)]">Join {{ roomStore.room.name }}</h2>
+          <p class="text-sm text-[var(--hp-muted)] mt-1">Enter your nickname to join this room.</p>
         </div>
         <input
           v-model="joinNickname"
           placeholder="Your nickname"
           @keydown.enter="joinRoom"
           autofocus
-          class="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          class="w-full rounded-lg border border-[var(--hp-border)] bg-[var(--hp-surface)] text-[var(--hp-text)] px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[var(--hp-accent)] placeholder:text-[var(--hp-muted)]"
         />
         <p v-if="joinError" class="text-sm text-red-500">{{ joinError }}</p>
         <button
           @click="joinRoom"
           :disabled="!joinNickname.trim()"
-          class="w-full rounded-lg bg-indigo-600 py-2.5 font-semibold text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          class="w-full rounded-lg bg-[var(--hp-accent)] py-2.5 font-semibold text-white hover:bg-[var(--hp-accent-h)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >Join Room</button>
       </div>
     </div>
 
     <template v-else>
       <!-- Toolbar -->
-      <header class="sticky top-0 z-10 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-4 py-2 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+      <header class="sticky top-0 z-10 bg-[var(--hp-surface)] border-b border-[var(--hp-border)] px-4 py-2 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
         <!-- Left: room title -->
-        <h1 class="text-lg font-bold truncate">{{ roomStore.room.name }}</h1>
+        <h1 class="text-lg font-bold font-brand-display text-[var(--hp-text)] truncate">{{ roomStore.room.name }}</h1>
 
         <!-- Center: active countdown -->
         <span
           v-if="timerRemaining !== null"
           :class="[
-            'text-xl font-mono font-bold tabular-nums',
-            timerRemaining <= 10 ? 'text-red-500' : 'text-gray-700 dark:text-gray-200',
+            'font-brand-mono text-xl font-bold tabular-nums rounded-full px-3 py-0.5',
+            timerRemaining <= 10 ? 'text-red-500 bg-red-500/10' : 'text-[var(--hp-accent)] bg-[var(--hp-accent-subtle)]',
           ]"
         >{{ formattedTimer }}</span>
         <span v-else></span>
@@ -56,8 +56,8 @@
             :class="[
               'flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm transition-colors',
               moodOpen || myEmoji
-                ? 'border-indigo-400 text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20'
-                : 'border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400',
+                ? 'border-[var(--hp-accent)] text-[var(--hp-accent)] bg-[var(--hp-accent-subtle)]'
+                : 'border-[var(--hp-border)] text-[var(--hp-muted)] hover:border-[var(--hp-accent)] hover:text-[var(--hp-accent)]',
             ]"
             title="Mood"
           >
@@ -76,7 +76,7 @@
           <!-- Dropdown -->
           <div
             v-if="moodOpen"
-            class="absolute left-0 top-full mt-1.5 z-20 flex flex-col sm:flex-row gap-1 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg px-2 py-1.5"
+            class="absolute left-0 top-full mt-1.5 z-20 flex flex-col sm:flex-row gap-1 rounded-xl border border-[var(--hp-border)] bg-[var(--hp-surface)] shadow-lg px-2 py-1.5"
           >
             <button
               v-for="e in EMOJIS"
@@ -86,8 +86,8 @@
               :class="[
                 'text-xl rounded-lg p-1.5 transition-all border',
                 myEmoji === e
-                  ? 'border-indigo-400 bg-indigo-50 dark:bg-indigo-900/30'
-                  : 'border-transparent hover:border-gray-200 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700',
+                  ? 'border-[var(--hp-accent)] bg-[var(--hp-accent-subtle)]'
+                  : 'border-transparent hover:border-[var(--hp-border)] hover:bg-[var(--hp-accent-subtle)]',
               ]"
             >{{ e }}</button>
           </div>
@@ -98,7 +98,7 @@
           <button
             @click="copyInviteLink"
             title="Copy Invite Link"
-            class="flex items-center gap-1.5 rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-300 hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+            class="flex items-center gap-1.5 rounded-lg border border-[var(--hp-border)] px-3 py-1.5 text-sm text-[var(--hp-muted)] hover:border-[var(--hp-accent)] hover:text-[var(--hp-accent)] transition-colors"
           >
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
               <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" />
@@ -107,7 +107,7 @@
           </button>
           <div
             v-if="showQR && qrDataUrl"
-            class="absolute right-0 top-full mt-2 z-20 w-[160px] rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg p-2"
+            class="absolute right-0 top-full mt-2 z-20 w-[160px] rounded-xl border border-[var(--hp-border)] bg-[var(--hp-surface)] shadow-lg p-2"
           >
             <img :src="qrDataUrl" alt="Room invite QR code" width="160" height="160" class="rounded" />
           </div>
@@ -118,7 +118,7 @@
           v-if="isOwner"
           @click="timerDialog = true"
           title="Set Timer"
-          class="flex items-center gap-1.5 rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-1.5 text-sm text-gray-600 dark:text-gray-300 hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+          class="flex items-center gap-1.5 rounded-lg border border-[var(--hp-border)] px-3 py-1.5 text-sm text-[var(--hp-muted)] hover:border-[var(--hp-accent)] hover:text-[var(--hp-accent)] transition-colors"
         >
           <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
             <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd" />
@@ -141,13 +141,13 @@
         <!-- Theme toggle -->
         <button
           @click="themeStore.toggle()"
-          class="rounded-full p-1.5 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:shadow transition-all"
+          class="rounded-full p-1.5 bg-[var(--hp-accent-subtle)] border border-[var(--hp-border)] hover:shadow transition-all"
           :aria-label="themeStore.isDark ? 'Switch to light mode' : 'Switch to dark mode'"
         >
           <svg v-if="themeStore.isDark" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-yellow-400" viewBox="0 0 122.88 122.88" fill="currentColor">
             <path fill-rule="evenodd" d="M30,13.21A3.93,3.93,0,1,1,36.8,9.27L41.86,18A3.94,3.94,0,1,1,35.05,22L30,13.21Zm31.45,13A35.23,35.23,0,1,1,36.52,36.52,35.13,35.13,0,0,1,61.44,26.2ZM58.31,4A3.95,3.95,0,1,1,66.2,4V14.06a3.95,3.95,0,1,1-7.89,0V4ZM87.49,10.1A3.93,3.93,0,1,1,94.3,14l-5.06,8.76a3.93,3.93,0,1,1-6.81-3.92l5.06-8.75ZM109.67,30a3.93,3.93,0,1,1,3.94,6.81l-8.75,5.06a3.94,3.94,0,1,1-4-6.81L109.67,30Zm9.26,28.32a3.95,3.95,0,1,1,0,7.89H108.82a3.95,3.95,0,1,1,0-7.89Zm-6.15,29.18a3.93,3.93,0,1,1-3.91,6.81l-8.76-5.06A3.93,3.93,0,1,1,104,82.43l8.75,5.06ZM92.89,109.67a3.93,3.93,0,1,1-6.81,3.94L81,104.86a3.94,3.94,0,0,1,6.81-4l5.06,8.76Zm-28.32,9.26a3.95,3.95,0,1,1-7.89,0V108.82a3.95,3.95,0,1,1,7.89,0v10.11Zm-29.18-6.15a3.93,3.93,0,0,1-6.81-3.91l5.06-8.76A3.93,3.93,0,1,1,40.45,104l-5.06,8.75ZM13.21,92.89a3.93,3.93,0,1,1-3.94-6.81L18,81A3.94,3.94,0,1,1,22,87.83l-8.76,5.06ZM4,64.57a3.95,3.95,0,1,1,0-7.89H14.06a3.95,3.95,0,1,1,0,7.89ZM10.1,35.39A3.93,3.93,0,1,1,14,28.58l8.76,5.06a3.93,3.93,0,1,1-3.92,6.81L10.1,35.39Z" clip-rule="evenodd" />
           </svg>
-          <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-indigo-600" viewBox="0 0 20 20" fill="currentColor">
+          <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-[var(--hp-accent)]" viewBox="0 0 20 20" fill="currentColor">
             <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
           </svg>
         </button>
@@ -159,15 +159,15 @@
       <main class="flex-1 flex flex-col lg:flex-row">
 
         <!-- ── Note sidebar (left on desktop, top on mobile) ── -->
-        <NoteSidebar :isOwner="isOwner" />
+        <NoteSidebar :isOwner="isOwner || isCoOwner" />
 
         <!-- ── Primary column ── -->
         <div class="flex-1 flex flex-col min-w-0">
-          <div class="max-w-3xl w-full mx-auto px-4 pt-8 space-y-8">
+          <div class="max-w-3xl w-full mx-auto px-4 pt-10 space-y-8">
 
             <!-- Round headline + current topic -->
-            <div class="text-center space-y-1">
-              <h2 class="text-3xl font-semibold text-gray-600 dark:text-gray-300">
+            <div class="text-center space-y-2">
+              <h2 class="text-4xl font-bold font-brand-display text-[var(--hp-muted)]">
                 Round {{ roomStore.currentRound?.number }}
               </h2>
               <div v-if="roomStore.currentTopic">
@@ -176,23 +176,25 @@
                   :href="roomStore.currentTopic.link"
                   target="_blank"
                   rel="noopener"
-                  class="inline-flex items-center gap-1.5 text-lg font-medium text-indigo-600 dark:text-indigo-400 hover:underline"
+                  class="inline-flex items-center gap-1.5 text-lg font-medium text-[var(--hp-accent)] hover:underline"
                 >
-                  <span class="font-mono">{{ roomStore.currentTopic.key }}</span><template v-if="roomStore.currentTopic.key">: </template>{{ roomStore.currentTopic.headline }}
+                  <span class="font-brand-mono">{{ roomStore.currentTopic.key }}</span><template v-if="roomStore.currentTopic.key">: </template>{{ roomStore.currentTopic.headline }}
                   <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" viewBox="0 0 20 20" fill="currentColor">
                     <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z" />
                     <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z" />
                   </svg>
                 </a>
-                <span v-else class="text-lg font-medium text-gray-700 dark:text-gray-300">
-                  <span class="font-mono">{{ roomStore.currentTopic.key }}</span><template v-if="roomStore.currentTopic.key">: </template>{{ roomStore.currentTopic.headline }}
+                <span v-else class="text-lg font-medium text-[var(--hp-text)]">
+                  <span class="font-brand-mono">{{ roomStore.currentTopic.key }}</span><template v-if="roomStore.currentTopic.key">: </template>{{ roomStore.currentTopic.headline }}
                 </span>
               </div>
             </div>
 
-            <!-- Owner action (centered) -->
-            <div v-if="isOwner" class="flex justify-center gap-3">
+            <!-- Owner / co-owner actions (centered) -->
+            <div v-if="isOwner || isCoOwner" class="flex justify-center gap-3">
+              <!-- Focus Music: owner only -->
               <div
+                v-if="isOwner"
                 class="relative"
                 data-testid="thinking-music-wrapper"
                 @mouseenter="onMusicWrapperEnter"
@@ -210,7 +212,7 @@
                     allVoted && !thinkingActive ? 'opacity-50 cursor-not-allowed' : '',
                   ]"
                 >
-                  {{ thinkingActive ? '⏹ Stop Music' : '🎵 Thinking time…' }}
+                  {{ thinkingActive ? '⏹ Stop' : '🎵 Focus Music' }}
                 </button>
                 <div
                   v-if="thinkingActive && showVolume"
@@ -226,24 +228,26 @@
                   <span class="text-xs">🔊</span>
                 </div>
               </div>
+              <!-- Reveal Cards: owner or co-owner -->
               <button
                 v-if="!roomStore.isRevealed"
                 @click="reveal"
                 :disabled="!allVoted"
-                class="rounded-lg bg-green-600 px-8 py-2.5 font-semibold text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                class="rounded-lg bg-[var(--hp-accent)] px-8 py-2.5 font-semibold text-white hover:bg-[var(--hp-accent-h)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 Reveal Cards
               </button>
-              <template v-if="roomStore.isRevealed">
+              <!-- Next Topic / Revote: owner only -->
+              <template v-if="roomStore.isRevealed && isOwner">
                 <button
                   @click="newRound"
-                  class="rounded-lg bg-indigo-600 px-8 py-2.5 font-semibold text-white hover:bg-indigo-700 transition-colors"
+                  class="rounded-lg bg-[var(--hp-accent)] px-8 py-2.5 font-semibold text-white hover:bg-[var(--hp-accent-h)] transition-colors"
                 >
                   Next Topic
                 </button>
                 <button
                   @click="retry"
-                  class="rounded-lg border border-indigo-400 dark:border-indigo-500 px-8 py-2.5 font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors"
+                  class="rounded-lg border border-[var(--hp-accent)] px-8 py-2.5 font-semibold text-[var(--hp-accent)] hover:bg-[var(--hp-accent-subtle)] transition-colors"
                 >
                   Revote
                 </button>
@@ -252,55 +256,72 @@
 
             <!-- Participants -->
             <section>
-              <h3 class="mb-3 text-sm font-medium text-gray-500 uppercase tracking-wide">Participants</h3>
-              <ul class="grid grid-cols-2 gap-2">
+              <h3 class="mb-4 text-xs font-semibold font-brand-display text-[var(--hp-muted)] uppercase tracking-widest">Participants</h3>
+              <ul class="flex flex-wrap gap-3">
                 <li
                   v-for="p in roomStore.participants"
                   :key="p.id"
                   :class="[
-                    'flex items-center justify-between rounded-lg border bg-white dark:bg-gray-800 px-4 py-3 transition-opacity',
+                    'relative group flex items-center justify-between rounded-xl border bg-[var(--hp-surface)] px-4 py-3 min-w-[10rem] transition-all duration-200',
                     participantBorderClass(p),
                   ]"
                 >
-                  <span :class="['font-medium flex items-center gap-1.5', p.suspended ? 'text-gray-400 dark:text-gray-500' : '']">
+                  <span :class="['font-medium flex items-center gap-1.5 text-[var(--hp-text)]', p.suspended ? 'opacity-50' : '']">
                     <span v-if="p.emoji" class="text-lg leading-none">{{ p.emoji }}</span>
                     {{ p.nickname }}
-                    <span v-if="p.is_owner" class="ml-1 text-xs text-indigo-500">owner</span>
+                    <span v-if="p.is_owner" class="ml-1 text-xs text-[var(--hp-accent)] font-brand-mono">owner</span>
+                    <span v-else-if="p.is_co_owner" class="ml-1 text-xs text-[var(--hp-accent)]/70 font-brand-mono">co-owner</span>
                     <span v-if="p.suspended" class="ml-1 text-xs text-yellow-500 dark:text-yellow-400">suspended</span>
                   </span>
                   <span class="flex items-center gap-3">
-                    <span :class="voteLabel(p).class">{{ voteLabel(p).text }}</span>
+                    <span :class="[voteLabel(p).class, roomStore.isRevealed ? 'font-brand-mono text-lg' : '']">{{ voteLabel(p).text }}</span>
                     <span v-if="roomStore.isRevealed && voteExtremes.highest.has(p.id)"
                       class="text-xs font-semibold text-orange-500">▲</span>
                     <span v-if="roomStore.isRevealed && voteExtremes.lowest.has(p.id)"
                       class="text-xs font-semibold text-blue-500">▼</span>
+                  </span>
+                  <!-- Hover dropdown: shown when owner/co-owner has actions for this participant -->
+                  <div
+                    v-if="hasActionsFor(p)"
+                    class="absolute left-0 top-full z-20 mt-1 w-44 rounded-lg border border-[var(--hp-border)] bg-[var(--hp-surface)] shadow-lg py-1 invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all duration-150 pointer-events-none group-hover:pointer-events-auto"
+                  >
                     <button
-                      v-if="isOwner && !p.is_owner"
+                      v-if="(isOwner && !p.is_owner) || (isCoOwner && !p.is_owner && !p.is_co_owner)"
                       @click="suspend(p.id)"
-                      :title="p.suspended ? 'Already suspended' : 'Suspend participant'"
                       :disabled="p.suspended"
-                      class="text-gray-400 hover:text-yellow-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                      class="flex w-full items-center gap-2 px-3 py-2 text-sm text-left text-[var(--hp-text)] hover:bg-[var(--hp-accent-subtle)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0 text-yellow-500" viewBox="0 0 24 24" fill="currentColor">
                         <rect x="6" y="4" width="4" height="16" rx="1"/>
                         <rect x="14" y="4" width="4" height="16" rx="1"/>
                       </svg>
+                      {{ p.suspended ? 'Already suspended' : 'Suspend' }}
                     </button>
-                  </span>
+                    <button
+                      v-if="isOwner && !p.is_owner && !p.is_co_owner"
+                      @click="promote(p.id)"
+                      class="flex w-full items-center gap-2 px-3 py-2 text-sm text-left text-[var(--hp-text)] hover:bg-[var(--hp-accent-subtle)] transition-colors"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0 text-[var(--hp-accent)]" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                      </svg>
+                      Make co-owner
+                    </button>
+                  </div>
                 </li>
               </ul>
               <!-- Results after reveal -->
-              <p v-if="roomStore.isRevealed && (numericAverage !== null || mostPopularVote !== null)" class="mt-3 text-sm text-gray-500 text-center space-x-4">
-                <span v-if="numericAverage !== null">Average: <span class="font-bold text-gray-900 dark:text-gray-100">{{ numericAverage }}</span></span>
-                <span v-if="mostPopularVote !== null">Most popular: <span class="font-bold text-gray-900 dark:text-gray-100">{{ mostPopularVote }}</span></span>
+              <p v-if="roomStore.isRevealed && (numericAverage !== null || mostPopularVote !== null)" class="mt-4 text-sm text-[var(--hp-muted)] text-center space-x-4">
+                <span v-if="numericAverage !== null">Average: <span class="font-brand-mono font-bold text-[var(--hp-text)]">{{ numericAverage }}</span></span>
+                <span v-if="mostPopularVote !== null">Most popular: <span class="font-brand-mono font-bold text-[var(--hp-text)]">{{ mostPopularVote }}</span></span>
               </p>
             </section>
 
           </div>
 
           <!-- Card selection — full browser width on desktop -->
-          <section v-if="!roomStore.isRevealed" class="w-full flex flex-col items-center gap-3 px-4 py-8 sm:py-6">
-            <h3 class="text-sm font-medium text-gray-500 uppercase tracking-wide">Your vote</h3>
+          <section v-if="!roomStore.isRevealed" class="w-full flex flex-col items-center gap-4 px-4 py-8 sm:py-6 border-t border-[var(--hp-border)] mt-8">
+            <h3 class="text-xs font-semibold font-brand-display text-[var(--hp-muted)] uppercase tracking-widest">Your vote</h3>
             <p v-if="isSuspended" class="text-sm text-yellow-600 dark:text-yellow-400">You are suspended — pick a card to re-enable yourself.</p>
             <div class="flex flex-wrap justify-center gap-3">
               <button
@@ -308,10 +329,10 @@
                 :key="card"
                 @click="vote(card)"
                 :class="[
-                  'h-20 w-14 rounded-xl border-2 text-lg font-bold transition-all bg-white dark:bg-gray-800',
+                  'h-24 w-16 rounded-2xl border-2 font-brand-mono text-xl font-bold flex items-center justify-center transition-all duration-150',
                   myVote === card
-                    ? 'border-blue-900 dark:border-blue-800'
-                    : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-400',
+                    ? 'bg-[var(--hp-accent)] border-[var(--hp-accent)] text-white -translate-y-2 shadow-lg'
+                    : 'bg-[var(--hp-surface)] border-[var(--hp-border)] text-[var(--hp-text)] shadow-sm hover:-translate-y-1 hover:shadow-md hover:border-[var(--hp-accent)]',
                 ]"
               >
                 {{ card }}
@@ -325,7 +346,7 @@
         </div>
 
         <!-- ── Topics sidebar (right on desktop, bottom on mobile) ── -->
-        <TopicsSidebar :isOwner="isOwner" />
+        <TopicsSidebar :isOwner="isOwner" :canEdit="isOwner || isCoOwner" />
 
       </main>
 
@@ -417,6 +438,11 @@ const isOwner = computed(() => {
   return me?.is_owner ?? false
 })
 
+const isCoOwner = computed(() => {
+  const me = roomStore.room?.participants?.[userStore.participantId]
+  return me?.is_co_owner ?? false
+})
+
 const isSuspended = computed(() => {
   const me = roomStore.room?.participants?.[userStore.participantId]
   return me?.suspended ?? false
@@ -486,9 +512,21 @@ async function retry() {
 }
 
 // Participant management
+function hasActionsFor(p) {
+  const canSuspend = (isOwner.value && !p.is_owner) || (isCoOwner.value && !p.is_owner && !p.is_co_owner)
+  const canPromote = isOwner.value && !p.is_owner && !p.is_co_owner
+  return canSuspend || canPromote
+}
+
 async function suspend(participantId) {
   try {
     await apiFetch(`/api/rooms/${roomId}/participants/${participantId}/suspend`, 'POST')
+  } catch (e) { error.value = e.message }
+}
+
+async function promote(participantId) {
+  try {
+    await apiFetch(`/api/rooms/${roomId}/participants/${participantId}/promote`, 'POST')
   } catch (e) { error.value = e.message }
 }
 
@@ -497,10 +535,11 @@ async function leaveRoom() {
     await apiFetch(`/api/rooms/${roomId}/leave`, 'POST', {
       participant_id: userStore.participantId,
     })
-  } finally {
     roomStore.clear()
     userStore.clearSession()
     router.push({ name: 'home' })
+  } catch (e) {
+    error.value = e.message
   }
 }
 

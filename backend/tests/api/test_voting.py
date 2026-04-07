@@ -49,6 +49,24 @@ class TestReveal:
         resp = await client.post(f"/api/rooms/{room_id}/reveal", json={"token": non_owner_token})
         assert resp.status_code == 403
 
+    async def test_co_owner_can_reveal(self, client, room_with_owner):
+        room_id, token, _ = room_with_owner
+        join = await client.post(f"/api/rooms/{room_id}/join", json={"nickname": "Bob"})
+        bob_id = join.json()["participant_id"]
+        bob_token = join.json()["token"]
+        await client.post(
+            f"/api/rooms/{room_id}/participants/{bob_id}/promote",
+            json={"token": token},
+        )
+        resp = await client.post(f"/api/rooms/{room_id}/reveal", json={"token": bob_token})
+        assert resp.status_code == 200
+
+    async def test_participant_id_is_not_accepted_as_token(self, client, room_with_owner):
+        room_id, _, owner_id = room_with_owner
+        # owner_id is the public participant UUID — must not work as auth token
+        resp = await client.post(f"/api/rooms/{room_id}/reveal", json={"token": owner_id})
+        assert resp.status_code == 403
+
     async def test_cannot_reveal_twice(self, client, room_with_owner):
         room_id, token, _ = room_with_owner
         await client.post(f"/api/rooms/{room_id}/reveal", json={"token": token})
@@ -79,9 +97,10 @@ class TestLeaveRoom:
         room_id, _, _ = room_with_owner
         join = await client.post(f"/api/rooms/{room_id}/join", json={"nickname": "Bob"})
         bob_id = join.json()["participant_id"]
+        bob_token = join.json()["token"]
         resp = await client.post(f"/api/rooms/{room_id}/leave", json={
             "participant_id": bob_id,
-            "token": bob_id,
+            "token": bob_token,
         })
         assert resp.status_code == 200
         room = (await client.get(f"/api/rooms/{room_id}")).json()

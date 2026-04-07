@@ -70,7 +70,7 @@ describe('Thinking time button', () => {
     const room = mockRoom()  // both votes null
     const { wrapper } = await mountWithRoom(room)
 
-    const btn = wrapper.findAll('button').find(b => b.text().includes('Thinking time'))
+    const btn = wrapper.findAll('button').find(b => b.text().includes('Focus Music'))
     expect(btn).toBeDefined()
     expect(btn.attributes('disabled')).toBeUndefined()
   })
@@ -84,7 +84,7 @@ describe('Thinking time button', () => {
     })
     const { wrapper } = await mountWithRoom(room)
 
-    const btn = wrapper.findAll('button').find(b => b.text().includes('Thinking time'))
+    const btn = wrapper.findAll('button').find(b => b.text().includes('Focus Music'))
     expect(btn).toBeDefined()
     expect(btn.attributes('disabled')).toBeDefined()
   })
@@ -99,7 +99,7 @@ describe('Thinking time button', () => {
     })
     const { wrapper } = await mountWithRoom(room)
 
-    const btn = wrapper.findAll('button').find(b => b.text().includes('Stop Music'))
+    const btn = wrapper.findAll('button').find(b => b.text().includes('Stop'))
     expect(btn).toBeDefined()
     expect(btn.attributes('disabled')).toBeUndefined()
   })
