@@ -89,6 +89,9 @@ export const useRoomStore = defineStore('room', () => {
     } else if (type === 'participant_promoted') {
       const p = room.value.participants[data.participant_id]
       if (p) p.is_co_owner = true
+    } else if (type === 'participant_kicked') {
+      const { [data.participant_id]: _, ...rest } = room.value.participants
+      room.value.participants = rest
     } else if (type === 'participant_suspended') {
       const p = room.value.participants[data.participant_id]
       if (p) { p.suspended = true; p.vote = null }
