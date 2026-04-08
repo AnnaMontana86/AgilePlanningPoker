@@ -173,3 +173,72 @@ class TestPromoteParticipant:
         room = (await client.get(f"/api/rooms/{room_id}")).json()
         assert owner_id not in room["participants"]
         assert room["participants"][bob_id]["is_owner"] is True
+
+
+class TestKickParticipant:
+    async def test_owner_can_kick_regular_participant(self, client, room_with_owner):
+        room_id, token, _ = room_with_owner
+        join = await client.post(f"/api/rooms/{room_id}/join", json={"nickname": "Bob"})
+        bob_id = join.json()["participant_id"]
+        resp = await client.post(
+            f"/api/rooms/{room_id}/participants/{bob_id}/kick",
+            json={"token": token},
+        )
+        assert resp.status_code == 200
+        room = (await client.get(f"/api/rooms/{room_id}")).json()
+        assert bob_id not in room["participants"]
+
+    async def test_owner_can_kick_co_owner(self, client, room_with_owner):
+        room_id, token, _ = room_with_owner
+        join = await client.post(f"/api/rooms/{room_id}/join", json={"nickname": "Bob"})
+        bob_id = join.json()["participant_id"]
+        await client.post(f"/api/rooms/{room_id}/participants/{bob_id}/promote", json={"token": token})
+        resp = await client.post(
+            f"/api/rooms/{room_id}/participants/{bob_id}/kick",
+            json={"token": token},
+        )
+        assert resp.status_code == 200
+        room = (await client.get(f"/api/rooms/{room_id}")).json()
+        assert bob_id not in room["participants"]
+
+    async def test_cannot_kick_the_owner(self, client, room_with_owner):
+        room_id, token, owner_id = room_with_owner
+        resp = await client.post(
+            f"/api/rooms/{room_id}/participants/{owner_id}/kick",
+            json={"token": token},
+        )
+        assert resp.status_code == 400
+
+    async def test_kick_nonexistent_participant_returns_404(self, client, room_with_owner):
+        room_id, token, _ = room_with_owner
+        resp = await client.post(
+            f"/api/rooms/{room_id}/participants/fake-id/kick",
+            json={"token": token},
+        )
+        assert resp.status_code == 404
+
+    async def test_wrong_token_returns_403(self, client, room_with_owner):
+        room_id, _, _ = room_with_owner
+        join = await client.post(f"/api/rooms/{room_id}/join", json={"nickname": "Bob"})
+        bob_id = join.json()["participant_id"]
+        resp = await client.post(
+            f"/api/rooms/{room_id}/participants/{bob_id}/kick",
+            json={"token": "wrong-token"},
+        )
+        assert resp.status_code == 403
+
+    async def test_co_owner_cannot_kick(self, client, room_with_owner):
+        room_id, token, _ = room_with_owner
+        join_bob = await client.post(f"/api/rooms/{room_id}/join", json={"nickname": "Bob"})
+        bob_id = join_bob.json()["participant_id"]
+        bob_token = join_bob.json()["token"]
+        join_carol = await client.post(f"/api/rooms/{room_id}/join", json={"nickname": "Carol"})
+        carol_id = join_carol.json()["participant_id"]
+        await client.post(f"/api/rooms/{room_id}/participants/{bob_id}/promote", json={"token": token})
+        resp = await client.post(
+            f"/api/rooms/{room_id}/participants/{carol_id}/kick",
+            json={"token": bob_token},
+        )
+        assert resp.status_code == 403
+        room = (await client.get(f"/api/rooms/{room_id}")).json()
+        assert carol_id in room["participants"]

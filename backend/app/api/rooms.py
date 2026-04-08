@@ -510,6 +510,24 @@ async def promote_participant(request: Request, room_id: str, participant_id: st
     return {"ok": True}
 
 
+@router.post("/rooms/{room_id}/participants/{participant_id}/kick")
+@limiter.limit("30/minute")
+async def kick_participant(request: Request, room_id: str, participant_id: str, req: KickRequest):
+    room = _get_room_or_404(room_id)
+    caller = next((p for p in room.participants.values() if p.is_owner and p.token == req.token), None)
+    if not caller:
+        raise HTTPException(status_code=403, detail="Only the room owner can kick participants")
+    if participant_id not in room.participants:
+        raise HTTPException(status_code=404, detail="Participant not found")
+    target = room.participants[participant_id]
+    if target.is_owner:
+        raise HTTPException(status_code=400, detail="Cannot kick the room owner")
+    del room.participants[participant_id]
+    store.save_room(room)
+    await broadcaster.broadcast(room_id, "participant_kicked", {"participant_id": participant_id})
+    return {"ok": True}
+
+
 @router.post("/rooms/{room_id}/emoji")
 @limiter.limit("30/minute")
 async def set_emoji(request: Request, room_id: str, req: EmojiRequest):

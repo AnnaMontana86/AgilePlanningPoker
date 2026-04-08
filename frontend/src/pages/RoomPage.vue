@@ -307,6 +307,16 @@
                       </svg>
                       Make co-owner
                     </button>
+                    <button
+                      v-if="isOwner && !p.is_owner"
+                      @click="kick(p.id)"
+                      class="flex w-full items-center gap-2 px-3 py-2 text-sm text-left text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 001 1h7a1 1 0 000-2H4V5h6a1 1 0 000-2H3zm11.293 4.293a1 1 0 011.414 0l3 3a1 1 0 010 1.414l-3 3a1 1 0 01-1.414-1.414L15.586 11H9a1 1 0 010-2h6.586l-1.293-1.293a1 1 0 010-1.414z" clip-rule="evenodd" />
+                      </svg>
+                      Kick
+                    </button>
                   </div>
                 </li>
               </ul>
@@ -483,6 +493,15 @@ const myVote = ref(null)
 watch(() => roomStore.currentRound?.number, () => { myVote.value = null })
 watch(() => roomStore.votesResetCount, () => { myVote.value = null })
 
+// Redirect if this user gets kicked
+watch(() => roomStore.room?.participants, (participants) => {
+  if (participants && userStore.participantId && !(userStore.participantId in participants)) {
+    roomStore.clear()
+    userStore.clearSession()
+    router.push({ name: 'home' })
+  }
+}, { deep: false })
+
 async function vote(card) {
   error.value = ''
   // Optimistic toggle: apply locally first, roll back on API error.
@@ -515,7 +534,8 @@ async function retry() {
 function hasActionsFor(p) {
   const canSuspend = (isOwner.value && !p.is_owner) || (isCoOwner.value && !p.is_owner && !p.is_co_owner)
   const canPromote = isOwner.value && !p.is_owner && !p.is_co_owner
-  return canSuspend || canPromote
+  const canKick = isOwner.value && !p.is_owner
+  return canSuspend || canPromote || canKick
 }
 
 async function suspend(participantId) {
@@ -527,6 +547,12 @@ async function suspend(participantId) {
 async function promote(participantId) {
   try {
     await apiFetch(`/api/rooms/${roomId}/participants/${participantId}/promote`, 'POST')
+  } catch (e) { error.value = e.message }
+}
+
+async function kick(participantId) {
+  try {
+    await apiFetch(`/api/rooms/${roomId}/participants/${participantId}/kick`, 'POST')
   } catch (e) { error.value = e.message }
 }
 
